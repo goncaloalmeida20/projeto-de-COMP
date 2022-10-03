@@ -1,62 +1,76 @@
+%{
+    #include <stdio.h>
+    #include <stdlib.h>
+
+    int line = 1;
+    int col = 1;
+%}
 num [0-9]
-let [a-zA-Z]
+let [$_a-zA-Z]
+ignore [" "\t\r\f]
+invalid_escape [^\n\t\r\f]
 %X STRING
 %%
-"\"" {printf("STRLIT\n"); BEGIN (STRING);}
-<STRING> "\\f" {printf("STRLIT\n");}
-<STRING> "\\n" {printf("STRLIT\n");}
-<STRING> "\\r" {printf("STRLIT\n");}
-<STRING> "\\t" {printf("STRLIT\n");}
-<STRING> "\\" {printf("STRLIT\n");}
-<STRING> "\"" {printf("STRLIT\n"); BEGIN (0);}
-"true"|"false" {printf("BOOLLIT\n");}
-"&&" {printf("AND\n");}
-"=" {printf("ASSIGN\n");}
-"*" {printf("STAR\n");}
-"," {printf("COMMA\n");}
-"/" {printf("DIV\n");}
-"==" {printf("EQ\n");}
-">=" {printf("GE\n");}
-">" {printf("GT\n");}
-"{" {printf("LBRACE\n");}
-"<=" {printf("LE\n");}
-"(" {printf("LPAR\n");}
-"[" {printf("LSQ\n");}
-"<" {printf("LT\n");}
-"-" {printf("MINUS\n");}
-"%" {printf("MOD\n");}
-"!=" {printf("NE\n");}
-"!" {printf("NOT\n");}
-"||" {printf("OR\n");}
-"+" {printf("PLUS\n");}
-"}" {printf("RBRACE\n");}
-")" {printf("RPAR\n");}
-"]" {printf("RSQ\n");}
-";" {printf("SEMICOLON\n");}
-"->" {printf("ARROW\n");}
-"<<" {printf("LSHIFT\n");}
-">>" {printf("RSHIFT\n");}
-"^" {printf("XOR\n");}
-"boolean" {printf("BOOL\n");}
-"class" {printf("CLASS\n");}
-".length" {printf("DOTLENGTH\n");}
-"double" {printf("DOUBLE\n");}
-"else" {printf("ELSE\n");}
-"if" {printf("IF\n");}
-"int" {printf("INT\n");}
-"System.out.print" {printf("PRINT\n");}
-"Integer.parseInt" {printf("PARSEINT\n");}
-"public" {printf("PUBLIC\n");}
-"return" {printf("RETURN\n");}
-"static" {printf("STATIC\n");}
-"String" {printf("STRING\n");}
-"void" {printf("VOID\n");}
-"while" {printf("WHILE\n");}
-"++" {printf("RESERVED\n");}
-"--" {printf("RESERVED\n");}
-"null" {printf("RESERVED\n");}
-"Integer" {printf("RESERVED\n");}
-"System" {printf("RESERVED\n");}
+"\"" {printf("STRLIT\n"); BEGIN (STRING); col += yyleng;}
+<STRING>"\\f" {printf("STRLIT(\"\\f\")\n"); col += yyleng;}
+<STRING>"\\n" {printf("STRLIT(\"\\n\")\n"); col += yyleng;}
+<STRING>"\\r" {printf("STRLIT(\"\\r\")\n"); col += yyleng;}
+<STRING>"\\t" {printf("STRLIT(\"\\t\")\n"); col += yyleng;}
+<STRING>"\\\\" {printf("STRLIT(\"\\\\\")\n"); col += yyleng;}
+<STRING>"\\"{invalid_escape} {printf("Invalid escape character (%s)\n", yytext); col += yyleng;}
+<STRING>"\n" {printf("Unterminated string literal\n"); line++; col += yyleng; BEGIN (0);}
+<STRING>"\"" {printf("STRLIT(\"\\\"\")n"); col += yyleng; BEGIN (0);}
+"&&" {printf("AND\n"); col += yyleng;}
+"=" {printf("ASSIGN\n"); col += yyleng;}
+"*" {printf("STAR\n"); col += yyleng;}
+"," {printf("COMMA\n"); col += yyleng;}
+"/" {printf("DIV\n"); col += yyleng;}
+"==" {printf("EQ\n"); col += yyleng;}
+">=" {printf("GE\n"); col += yyleng;}
+">" {printf("GT\n"); col += yyleng;}
+"{" {printf("LBRACE\n"); col += yyleng;}
+"<=" {printf("LE\n"); col += yyleng;}
+"(" {printf("LPAR\n"); col += yyleng;}
+"[" {printf("LSQ\n"); col += yyleng;}
+"<" {printf("LT\n"); col += yyleng;}
+"-" {printf("MINUS\n"); col += yyleng;}
+"%" {printf("MOD\n"); col += yyleng;}
+"!=" {printf("NE\n"); col += yyleng;}
+"!" {printf("NOT\n"); col += yyleng;}
+"||" {printf("OR\n"); col += yyleng;}
+"+" {printf("PLUS\n"); col += yyleng;}
+"}" {printf("RBRACE\n"); col += yyleng;}
+")" {printf("RPAR\n"); col += yyleng;}
+"]" {printf("RSQ\n"); col += yyleng;}
+";" {printf("SEMICOLON\n"); col += yyleng;}
+"->" {printf("ARROW\n"); col += yyleng;}
+"<<" {printf("LSHIFT\n"); col += yyleng;}
+">>" {printf("RSHIFT\n"); col += yyleng;}
+"^" {printf("XOR\n"); col += yyleng;}
+"true"|"false" {printf("BOOLLIT\n"); col += yyleng;}
+"boolean" {printf("BOOL\n"); col += yyleng;}
+"class" {printf("CLASS\n"); col += yyleng;}
+".length" {printf("DOTLENGTH\n"); col += yyleng;}
+"double" {printf("DOUBLE\n"); col += yyleng;}
+"else" {printf("ELSE\n"); col += yyleng;}
+"if" {printf("IF\n"); col += yyleng;}
+"int" {printf("INT\n"); col += yyleng;}
+"System.out.print" {printf("PRINT\n"); col += yyleng;}
+"Integer.parseInt" {printf("PARSEINT\n"); col += yyleng;}
+"public" {printf("PUBLIC\n"); col += yyleng;}
+"return" {printf("RETURN\n"); col += yyleng;}
+"static" {printf("STATIC\n"); col += yyleng;}
+"String" {printf("STRING\n"); col += yyleng;}
+"void" {printf("VOID\n"); col += yyleng;}
+"while" {printf("WHILE\n"); col += yyleng;}
+"++"|"--"|"null"|"Integer"|"System" {printf("RESERVED\n"); col += yyleng;}
+{num}("_"*{num})* {printf("INTLIT(%s)\n", yytext); col += yyleng;}
+{num}("_"*{num})*("."{num}("_"*{num})*)?(("e"|"E")("+"|"-"|""){num}("_"*{num})*("."{num}("_"*{num})*)?)? {printf("REALLIT(%s)\n", yytext); col += yyleng;}
+"."{num}("_"*{num})*(("e"|"E")("+"|"-"|""){num}("_"*{num})*("."{num}("_"*{num})*)?)? {printf("REALLIT(%s)\n", yytext); col += yyleng;}
+{let}({let}|{num})* {printf("ID(%s)\n", yytext);}
+"\n" {line++; col = 1;}
+{ignore} {;}
+. {printf("Line %d, col %d: illegal character (%c)\n", line, col, yytext[0]); col += yyleng;}
 %%
 int main()
 {
