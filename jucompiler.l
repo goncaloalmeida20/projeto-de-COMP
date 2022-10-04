@@ -7,19 +7,20 @@
 %}
 num [0-9]
 let [$_a-zA-Z]
-ignore [" "\t\r\f]
-invalid_escape [^\n\t\r\f]
-%X STRING
+ignore [ \t\r\f]
+invalid_escape [^\\ntrf]
+%X MLCOMMENT
 %%
-"\"" {printf("STRLIT\n"); BEGIN (STRING); col += yyleng;}
-<STRING>"\\f" {printf("STRLIT(\"\\f\")\n"); col += yyleng;}
-<STRING>"\\n" {printf("STRLIT(\"\\n\")\n"); col += yyleng;}
-<STRING>"\\r" {printf("STRLIT(\"\\r\")\n"); col += yyleng;}
-<STRING>"\\t" {printf("STRLIT(\"\\t\")\n"); col += yyleng;}
-<STRING>"\\\\" {printf("STRLIT(\"\\\\\")\n"); col += yyleng;}
-<STRING>"\\"{invalid_escape} {printf("Invalid escape character (%s)\n", yytext); col += yyleng;}
-<STRING>"\n" {printf("Unterminated string literal\n"); line++; col += yyleng; BEGIN (0);}
-<STRING>"\"" {printf("STRLIT(\"\\\"\")n"); col += yyleng; BEGIN (0);}
+"\n" {line++; col = 1;}
+"//".* {;}
+"/*" {BEGIN (MLCOMMENT);}
+<MLCOMMENT>"*/" {BEGIN (0);}
+<MLCOMMENT>"\n" {line++; col = 1;}
+<MLCOMMENT><<EOF>> {printf("Line %d, col %d: unterminated comment\n", line, col); BEGIN (0);}
+<MLCOMMENT>. {;}
+"\""[^\"\n]*("\\"{invalid_escape})[^\"\n]*("\"")? {printf("Line %d, col %d: invalid escape sequence (%s)\n", line, col, yytext); col += yyleng;}
+"\""[^\"\n]*("\n")? {printf("Line %d, col %d: unterminated string literal\n", line, col); line++; col += yyleng;}
+"\""[^\"\n]*"\"" {yytext[yyleng-1] = 0; printf("STRLIT(\"%s\")\n", &yytext[1]); col += yyleng;}
 "&&" {printf("AND\n"); col += yyleng;}
 "=" {printf("ASSIGN\n"); col += yyleng;}
 "*" {printf("STAR\n"); col += yyleng;}
@@ -68,7 +69,6 @@ invalid_escape [^\n\t\r\f]
 {num}("_"*{num})*("."{num}("_"*{num})*)?(("e"|"E")("+"|"-"|""){num}("_"*{num})*("."{num}("_"*{num})*)?)? {printf("REALLIT(%s)\n", yytext); col += yyleng;}
 "."{num}("_"*{num})*(("e"|"E")("+"|"-"|""){num}("_"*{num})*("."{num}("_"*{num})*)?)? {printf("REALLIT(%s)\n", yytext); col += yyleng;}
 {let}({let}|{num})* {printf("ID(%s)\n", yytext);}
-"\n" {line++; col = 1;}
 {ignore} {;}
 . {printf("Line %d, col %d: illegal character (%c)\n", line, col, yytext[0]); col += yyleng;}
 %%
