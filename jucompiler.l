@@ -6,7 +6,7 @@
     int col = 1;
     const char* valid_esc = "ntrf\\";
 
-    void invalid_escape_sequences(const char* string, int leng);
+    void invalid_escape_sequences(const char* string, int leng, int unterminated_string);
 %}
 num [0-9]
 let [$_a-zA-Z]
@@ -21,7 +21,8 @@ invalid_escape [^\\\n\t\r\fntrf]
 <MLCOMMENT>"\n" {line++; col = 1;}
 <MLCOMMENT><<EOF>> {printf("Line %d, col %d: unterminated comment\n", line, col); BEGIN (0);}
 <MLCOMMENT>. {;}
-"\""[^\"\n]*("\\"{invalid_escape})[^\"\n]*("\"") {invalid_escape_sequences(yytext, yyleng); col += yyleng;}
+"\""[^\"\n]*("\\"{invalid_escape}?)[^\"\n]*("\"") {invalid_escape_sequences(yytext, yyleng, 0);}
+"\""[^\"\n]*("\\"{invalid_escape}?)[^\"\n]*("\n")?  {invalid_escape_sequences(yytext, yyleng, 1);}
 "\""[^\"\n]*("\n")? {printf("Line %d, col %d: unterminated string literal\n", line, col); line++; col = 1;}
 "\""[^\"\n]*"\"" {yytext[yyleng-1] = 0; printf("STRLIT(\"%s\")\n", &yytext[1]); col += yyleng;}
 "&&" {printf("AND\n"); col += yyleng;}
@@ -51,7 +52,7 @@ invalid_escape [^\\\n\t\r\fntrf]
 "<<" {printf("LSHIFT\n"); col += yyleng;}
 ">>" {printf("RSHIFT\n"); col += yyleng;}
 "^" {printf("XOR\n"); col += yyleng;}
-"true"|"false" {printf("BOOLLIT\n"); col += yyleng;}
+"true"|"false" {printf("BOOLLIT(%s)\n", yytext); col += yyleng;}
 "boolean" {printf("BOOL\n"); col += yyleng;}
 "class" {printf("CLASS\n"); col += yyleng;}
 ".length" {printf("DOTLENGTH\n"); col += yyleng;}
@@ -67,7 +68,7 @@ invalid_escape [^\\\n\t\r\fntrf]
 "String" {printf("STRING\n"); col += yyleng;}
 "void" {printf("VOID\n"); col += yyleng;}
 "while" {printf("WHILE\n"); col += yyleng;}
-"++"|"--"|"null"|"Integer"|"System" {printf("RESERVED\n"); col += yyleng;}
+"++"|"--"|"null"|"break"|"byte"|"case"|"catch"|"char"|"const"|"enum"|"extends"|"final"|"finally"|"float"|"for"|"implements"|"import"|"instanceof"|"interface"|"long"|"native"|"new"|"protected"|"short"|"strictfp"|"super"|"this"|"throw"|"throws"|"transient"|"try"|"volatile"|"Integer"|"System" {printf("RESERVED\n"); col += yyleng;}
 {num}("_"*{num})* {printf("INTLIT(%s)\n", yytext); col += yyleng;}
 {num}("_"*{num})*("."{num}("_"*{num})*)?(("e"|"E")("+"|"-"|""){num}("_"*{num})*("."{num}("_"*{num})*)?)? {printf("REALLIT(%s)\n", yytext); col += yyleng;}
 "."{num}("_"*{num})*(("e"|"E")("+"|"-"|""){num}("_"*{num})*("."{num}("_"*{num})*)?)? {printf("REALLIT(%s)\n", yytext); col += yyleng;}
@@ -93,12 +94,21 @@ int is_invalid_esc(const char c){
     return 1;
 }
 
-void invalid_escape_sequences(const char* string, int leng){
+void invalid_escape_sequences(const char* string, int leng, int unterminated_string){
     int col_temp = col;
+    
     for(int i = 0; i < leng; i++, col_temp++){
-        if(string[i] == '\\' && i < leng && is_invalid_esc(string[i+1])){
-            printf("Line %d, col %d: invalid escape sequence (\\%c)\n", line, col_temp++, string[i+1]);
+        if(string[i] == '\\' && i < leng-1 && is_invalid_esc(string[i+1])){
+            if(string[i+1] == '\n')
+                printf("Line %d, col %d: invalid escape sequence (\\)\n", line, col_temp++);
+            else
+                printf("Line %d, col %d: invalid escape sequence (\\%c)\n", line, col_temp++, string[i+1]);
             i++;
         }
     }
+    if(unterminated_string){
+        printf("Line %d, col %d: unterminated string literal\n", line, col); 
+        line++;
+        col = 1;
+    }else col += leng;
 }
