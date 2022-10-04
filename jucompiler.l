@@ -3,12 +3,14 @@
     #include <stdlib.h>
 
     int line = 1;
+    int line_temp = 1;
     int col = 1;
     const char* valid_esc = "ntrf\\";
 
     void invalid_escape_sequences(const char* string, int leng, int unterminated_string);
 %}
 num [0-9]
+numnotzero [1-9]
 let [$_a-zA-Z]
 ignore [ \t\r\f]
 invalid_escape [^\\\n\t\r\fntrf]
@@ -16,9 +18,9 @@ invalid_escape [^\\\n\t\r\fntrf]
 %%
 "\n" {line++; col = 1;}
 "//".* {;}
-"/*" {BEGIN (MLCOMMENT);}
-<MLCOMMENT>"*/" {BEGIN (0);}
-<MLCOMMENT>"\n" {line++; col = 1;}
+"/*" {line_temp = line; BEGIN (MLCOMMENT);}
+<MLCOMMENT>"*/" {line = line_temp; BEGIN (0);}
+<MLCOMMENT>"\n" {line_temp++; col = 1;}
 <MLCOMMENT><<EOF>> {printf("Line %d, col %d: unterminated comment\n", line, col); BEGIN (0);}
 <MLCOMMENT>. {;}
 "\""[^\"\n]*("\\"{invalid_escape}?)[^\"\n]*("\"") {invalid_escape_sequences(yytext, yyleng, 0);}
@@ -68,10 +70,10 @@ invalid_escape [^\\\n\t\r\fntrf]
 "String" {printf("STRING\n"); col += yyleng;}
 "void" {printf("VOID\n"); col += yyleng;}
 "while" {printf("WHILE\n"); col += yyleng;}
-"++"|"--"|"null"|"break"|"byte"|"case"|"catch"|"char"|"const"|"enum"|"extends"|"final"|"finally"|"float"|"for"|"implements"|"import"|"instanceof"|"interface"|"long"|"native"|"new"|"protected"|"short"|"strictfp"|"super"|"this"|"throw"|"throws"|"transient"|"try"|"volatile"|"Integer"|"System" {printf("RESERVED\n"); col += yyleng;}
-{num}("_"*{num})* {printf("INTLIT(%s)\n", yytext); col += yyleng;}
-{num}("_"*{num})*("."{num}("_"*{num})*)?(("e"|"E")("+"|"-"|""){num}("_"*{num})*("."{num}("_"*{num})*)?)? {printf("REALLIT(%s)\n", yytext); col += yyleng;}
-"."{num}("_"*{num})*(("e"|"E")("+"|"-"|""){num}("_"*{num})*("."{num}("_"*{num})*)?)? {printf("REALLIT(%s)\n", yytext); col += yyleng;}
+"++"|"--"|"null"|"break"|"byte"|"case"|"catch"|"char"|"const"|"enum"|"extends"|"final"|"finally"|"float"|"for"|"implements"|"import"|"instanceof"|"interface"|"long"|"native"|"new"|"protected"|"short"|"strictfp"|"super"|"this"|"throw"|"throws"|"transient"|"try"|"volatile"|"Integer"|"System" {printf("RESERVED(%s)\n", yytext); col += yyleng;}
+"0"|({numnotzero}("_"*{num})*) {printf("INTLIT(%s)\n", yytext); col += yyleng;}
+"0"?"."{num}("_"*{num})*(("e"|"E")("+"|"-"|""){num}("_"*{num})*("."{num}("_"*{num})*)?)? {printf("REALLIT(%s)\n", yytext); col += yyleng;}
+{numnotzero}("_"*{num})*("."{num}("_"*{num})*)?(("e"|"E")("+"|"-"|""){num}("_"*{num})*("."{num}("_"*{num})*)?)? {printf("REALLIT(%s)\n", yytext); col += yyleng;}
 {let}({let}|{num})* {printf("ID(%s)\n", yytext); col += yyleng;}
 {ignore} {col += yyleng;}
 . {printf("Line %d, col %d: illegal character (%c)\n", line, col, yytext[0]); col += yyleng;}
