@@ -15,8 +15,8 @@ num [0-9]
 numnotzero [1-9]
 let [$_a-zA-Z]
 escape_chars [\\\"ntrf]
-invalid_escape [^\n\\\"ntrf]
-ignore [ \t]
+invalid_escape [^\n\r\\\"ntrf]
+ignore [ \t\r]
 %X MLCOMMENT
 %%
 "\n" {line++; col = 1;}
@@ -107,7 +107,7 @@ void invalid_escape_sequences(const char* string, int leng, int unterminated_str
     
     for(int i = 0; i < leng; i++, col_temp++){
         if(string[i] == '\\' && i < leng-1 && is_invalid_esc(string[i+1])){
-            if(string[i+1] == '\n')
+            if(string[i+1] == '\n' || string[i+1] == '\r')
                 printf("Line %d, col %d: invalid escape sequence (\\)\n", line, col_temp++);
             else
                 printf("Line %d, col %d: invalid escape sequence (\\%c)\n", line, col_temp++, string[i+1]);
