@@ -24,11 +24,10 @@ ignore [ \t]
 <MLCOMMENT>"\n" {line_temp++; col = 1;}
 <MLCOMMENT><<EOF>> {printf("Line %d, col %d: unterminated comment\n", line, col); BEGIN (0);}
 <MLCOMMENT>. {;}
+"\""([^\\\"\n]|("\\"{escape_chars}))*"\"" {yytext[yyleng-1] = 0; printf("STRLIT(\"%s\")\n", &yytext[1]); col += yyleng;}
 "\""[^\"\n]*("\\"{invalid_escape}?)[^\"\n]*"\"" {invalid_escape_sequences(yytext, yyleng, 0);}
 "\""[^\"\n]*("\\"{invalid_escape}?)[^\"\n]*("\n")?  {invalid_escape_sequences(yytext, yyleng, 1);}
-"\""[^\"\n]*("\\"{escape_chars})[^\"\n]*"\"" {yytext[yyleng-1] = 0; printf("STRLIT(\"%s\")\n", &yytext[1]); col += yyleng;}
 "\""[^\"\n]*("\n")? {printf("Line %d, col %d: unterminated string literal\n", line, col); line++; col = 1;}
-"\""[^\"\n]*"\"" {yytext[yyleng-1] = 0; printf("STRLIT(\"%s\")\n", &yytext[1]); col += yyleng;}
 "&&" {printf("AND\n"); col += yyleng;}
 "=" {printf("ASSIGN\n"); col += yyleng;}
 "*" {printf("STAR\n"); col += yyleng;}
