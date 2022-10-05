@@ -73,9 +73,10 @@ ignore [ \t]
 "void" {printf("VOID\n"); col += yyleng;}
 "while" {printf("WHILE\n"); col += yyleng;}
 "Integer"|"null"|"System"|"--"|"++"|"abstract"|"continue"|"for"|"new"|"switch"|"assert"|"default"|"if"|"package"|"synchronized"|"boolean"|"do"|"goto"|"private"|"this"|"break"|"double"|"implements"|"protected"|"throw"|"byte"|"else"|"import"|"public"|"throws"|"case"|"enum"|"instanceof"|"return"|"transient"|"catch"|"extends"|"int"|"short"|"try"|"char"|"final"|"interface"|"static"|"void"|"class"|"finally"|"long"|"strictfp"|"volatile"|"const"|"float"|"native"|"super"|"while"|"_" {printf("RESERVED(%s)\n", yytext); col += yyleng;}
+{numnotzero}("_"*{num})* {printf("INTLIT(%s)\n", yytext); col += yyleng;}
 "0"("0"|"_"+"0")*(("e"|"E")("+"|"-"|"")("0."|"0"("0"|"_"+"0")*|("0"?"."{num}("_"*{num})*)|(("0"("0"|"_")*)?{numnotzero}("_"*{num})*("."({num}("_"*{num})*)?)?))) {printf("REALLIT(%s)\n", yytext); col += yyleng;}
-("0."|("0"?"."{num}("_"*{num})*)|(("0"("0"|"_")*)?{numnotzero}("_"*{num})*("."({num}("_"*{num})*)?)?))(("e"|"E")("+"|"-"|"")("0."|"0"|("0"?"."{num}("_"*{num})*)|(("0"("0"|"_")*)?{numnotzero}("_"*{num})*("."({num}("_"*{num})*)?)?)))? {printf("REALLIT(%s)\n", yytext); col += yyleng;}
-"0"|(("0"("0"|"_")*)?{numnotzero}("_"*{num})*) {printf("INTLIT(%s)\n", yytext); col += yyleng;}
+("0."|("0"?"."{num}("_"*{num})*)|({numnotzero}("_"*{num})*("."({num}("_"*{num})*)?)?))(("e"|"E")("+"|"-"|"")("0."|"0"|("0"?"."{num}("_"*{num})*)|(("0"("0"|"_")*)?{numnotzero}("_"*{num})*("."({num}("_"*{num})*)?)?)))? {printf("REALLIT(%s)\n", yytext); col += yyleng;}
+"0" {printf("INTLIT(%s)\n", yytext); col += yyleng;}
 {let}({let}|{num})* {printf("ID(%s)\n", yytext); col += yyleng;}
 {ignore} {col += yyleng;}
 . {printf("Line %d, col %d: illegal character (%c)\n", line, col, yytext[0]); col += yyleng;}
