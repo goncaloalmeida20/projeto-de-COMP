@@ -16,7 +16,7 @@ numnotzero [1-9]
 let [$_a-zA-Z]
 escape_chars [\\\"ntrf]
 invalid_escape [^\n\r\\\"ntrf]
-ignore [ \t\r]
+ignore [ \t\r\f]
 %X MLCOMMENT
 %%
 "\n" {line++; col = 1;}
