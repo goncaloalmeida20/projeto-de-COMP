@@ -19,7 +19,7 @@ invalid_escape [^\n\r\\\"ntrf]
 ignore [ \t\r\f]
 %X MLCOMMENT STRING
 %%
-"\n" {line++; col = 1;}
+"\r\n"|"\n"|"\r" {line++; col = 1;}
 "//"[^\r\n]* {;}
 "/*" {line_temp = line; col_temp = col; BEGIN (MLCOMMENT);}
 <MLCOMMENT>"*/" {line = line_temp; col = col_temp; BEGIN (0);}
@@ -77,8 +77,8 @@ ignore [ \t\r\f]
 "while" {if(flag) printf("WHILE\n"); col += yyleng;}
 "Integer"|"null"|"System"|"--"|"++"|"abstract"|"continue"|"for"|"new"|"switch"|"assert"|"default"|"if"|"package"|"synchronized"|"boolean"|"do"|"goto"|"private"|"this"|"break"|"double"|"implements"|"protected"|"throw"|"byte"|"else"|"import"|"public"|"throws"|"case"|"enum"|"instanceof"|"return"|"transient"|"catch"|"extends"|"int"|"short"|"try"|"char"|"final"|"interface"|"static"|"void"|"class"|"finally"|"long"|"strictfp"|"volatile"|"const"|"float"|"native"|"super"|"while" {if(flag) printf("RESERVED(%s)\n", yytext); col += yyleng;}
 {numnotzero}("_"*{num})* {if(flag) printf("INTLIT(%s)\n", yytext); col += yyleng;}
-{num}("_"*{num})*(("e"|"E")("+"|"-"|"")("0."|"0"("0"|"_"+"0")*|("0"?"."{num}("_"*{num})*)|({num}("_"*{num})*("."({num}("_"*{num})*)?)?))) {if(flag) printf("REALLIT(%s)\n", yytext); col += yyleng;}
-(("0"?"."{num}("_"*{num})*)|({num}("_"*{num})*("."({num}("_"*{num})*)?)))(("e"|"E")("+"|"-"|"")("0."|"0"|("0"?"."{num}("_"*{num})*)|({num}("_"*{num})*("."({num}("_"*{num})*)?)?)))? {if(flag) printf("REALLIT(%s)\n", yytext); col += yyleng;}
+{num}("_"*{num})*(("e"|"E")("+"|"-"|""){num}("_"*{num})*) {if(flag) printf("REALLIT(%s)\n", yytext); col += yyleng;}
+(("0"?"."{num}("_"*{num})*)|({num}("_"*{num})*("."({num}("_"*{num})*)?)))(("e"|"E")("+"|"-"|""){num}("_"*{num})*)? {if(flag) printf("REALLIT(%s)\n", yytext); col += yyleng;}
 "0" {if(flag) printf("INTLIT(%s)\n", yytext); col += yyleng;}
 {let}({let}|{num})* {if(flag) printf("ID(%s)\n", yytext); col += yyleng;}
 {ignore} {col += yyleng;}
