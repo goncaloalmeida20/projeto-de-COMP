@@ -21,11 +21,11 @@ ignore [ \t\r\f]
 %%
 "\r\n"|"\n"|"\r" {line++; col = 1;}
 "//"[^\r\n]* {;}
-"/*" {line_temp = line; col_temp = col; BEGIN (MLCOMMENT);}
-<MLCOMMENT>"*/" {line = line_temp; col = col_temp; BEGIN (0);}
+"/*" {line_temp = line; col_temp = col; col_temp += yyleng; BEGIN (MLCOMMENT);}
+<MLCOMMENT>"*/" {col_temp += yyleng; line = line_temp; col = col_temp; BEGIN (0);}
 <MLCOMMENT>"\r\n"|"\n"|"\r" {line_temp++; col_temp = 1;}
 <MLCOMMENT><<EOF>> {printf("Line %d, col %d: unterminated comment\n", line, col); BEGIN (0);}
-<MLCOMMENT>. {col_temp++;}
+<MLCOMMENT>. {col_temp+=yyleng;}
 "\"" {col_temp = col; col_temp += yyleng; current_string_pos = 0; print_string = 1; BEGIN (STRING);}
 <STRING>"\"" {col_temp += yyleng; if(print_string) printf("STRLIT(\"%s\")\n", string); string[0] = 0; col = col_temp; BEGIN (0);}
 <STRING><<EOF>> {print_string = 0; printf("Line %d, col %d: unterminated string literal\n", line, col); BEGIN (0);}
