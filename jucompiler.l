@@ -29,7 +29,7 @@ ignore [ \t\r\f]
 <MLCOMMENT>. {col_temp+=yyleng;}
 
 "\"" {col_temp = col; col_temp += yyleng; current_string_pos = 0; print_string = 1; BEGIN (STRING);}
-<STRING>"\"" {col_temp += yyleng; if(print_string) printf("STRLIT(\"%s\")\n", string); string[0] = 0; col = col_temp; BEGIN (0);}
+<STRING>"\"" {col_temp += yyleng; if(print_string && flag) printf("STRLIT(\"%s\")\n", string); string[0] = 0; col = col_temp; BEGIN (0);}
 <STRING><<EOF>> {print_string = 0; printf("Line %d, col %d: unterminated string literal\n", line, col); BEGIN (0);}
 <STRING>"\r\n"|"\n"|"\r" {print_string = 0; printf("Line %d, col %d: unterminated string literal\n", line, col); string[0] = 0; line++; col = 1; BEGIN (0);}
 <STRING>("\\"{escape_chars})|[^\\] {col_temp += yyleng; strcpy(&string[current_string_pos], yytext); current_string_pos += yyleng;}
