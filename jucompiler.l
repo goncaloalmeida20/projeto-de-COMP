@@ -3,7 +3,7 @@
     #include <stdlib.h>
     #include <string.h>
 
-    #define MAX_STRING_SIZE 1024
+    #define MAX_STRING_SIZE 10000
 
     int line = 1, line_temp = 1;
     int col = 1, col_temp = 1;
