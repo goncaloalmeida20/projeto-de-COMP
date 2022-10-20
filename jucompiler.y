@@ -57,8 +57,8 @@ Expr: Expr '(' PLUS | MINUS | STAR | DIV | MOD ')' Expr
 
 int main() {
     if(argc > 1){
-        if(strcmp(argv[1], "-l") == 0) flag = 1;
-        else if(strcmp(argv[1], "-e1") == 0) flag = 0;
+        if(strcmp(argv[1], "-t") == 0) flag = 1;
+        else if(strcmp(argv[1], "-e2") == 0) flag = 0;
     }
     yyparse();
     return 0;
