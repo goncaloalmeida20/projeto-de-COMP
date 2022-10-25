@@ -1,13 +1,17 @@
 %{
+/*
+Autores:
+Gonçalo Almeida, nº2020218868
+João Santos, nº2020218995
+*/
     #include <stdio.h>
     #include <stdlib.h>
-    #include <string.h>
-
+    #include "y.tab.h"
     #define MAX_STRING_SIZE 1024
 
+    extern int flag;
     int line = 1, line_temp = 1;
     int col = 1, col_temp = 1;
-    int flag = 0; // 0: -e1 or no flag, 1: -l
     int current_string_pos = 0, print_string = 1;
     char string[MAX_STRING_SIZE];
 %}
@@ -17,7 +21,7 @@ let [$_a-zA-Z]
 escape_chars [\\\"ntrf]
 invalid_escape [^\n\r\\\"ntrf]
 ignore [ \t\r\f]
-%X MLCOMMENT STRING
+%X MLCOMMENT STRING_STATE
 %%
 "\n" {line++; col = 1;}
 "//"[^\r\n]* {;}
@@ -27,11 +31,11 @@ ignore [ \t\r\f]
 <MLCOMMENT><<EOF>> {printf("Line %d, col %d: unterminated comment\n", line, col); BEGIN (0);}
 <MLCOMMENT>. {col_temp++;}
 "\"" {col_temp = col; col_temp += yyleng; current_string_pos = 0; print_string = 1; BEGIN (STRING);}
-<STRING>"\"" {col_temp += yyleng; string[0] = 0; col = col_temp; BEGIN (0); if(print_string) printf("STRLIT(\"%s\")\n", string); string[0] = 0; return STRLIT; }
-<STRING><<EOF>> {print_string = 0; printf("Line %d, col %d: unterminated string literal\n", line, col); BEGIN (0);}
-<STRING>"\n" {print_string = 0; printf("Line %d, col %d: unterminated string literal\n", line, col); string[0] = 0; line++; col = 1; BEGIN (0);}
-<STRING>("\\"{escape_chars})|[^\\] {col_temp += yyleng; strcpy(&string[current_string_pos], yytext); current_string_pos += yyleng;}
-<STRING>("\\"{invalid_escape}?) {print_string = 0; printf("Line %d, col %d: invalid escape sequence (%s)\n", line, col_temp, yytext); col_temp += yyleng;}
+<STRING_STATE>"\"" {col_temp += yyleng; string[0] = 0; col = col_temp; BEGIN (0); if(print_string) printf("STRLIT(\"%s\")\n", string); yylval.str = strdup(string); string[0] = 0; return STRLIT; }
+<STRING_STATE><<EOF>> {print_string = 0; printf("Line %d, col %d: unterminated string literal\n", line, col); BEGIN (0);}
+<STRING_STATE>"\n" {print_string = 0; printf("Line %d, col %d: unterminated string literal\n", line, col); string[0] = 0; line++; col = 1; BEGIN (0);}
+<STRING_STATE>("\\"{escape_chars})|[^\\] {col_temp += yyleng; strcpy(&string[current_string_pos], yytext); current_string_pos += yyleng;}
+<STRING_STATE>("\\"{invalid_escape}?) {print_string = 0; printf("Line %d, col %d: invalid escape sequence (%s)\n", line, col_temp, yytext); col_temp += yyleng;}
 "&&" {col += yyleng; if(flag) printf("AND\n"); return AND;}
 "="  {col += yyleng; if(flag) printf("ASSIGN\n"); return ASSIGN;}
 "*"  {col += yyleng; if(flag) printf("STAR\n"); return STAR;}
@@ -59,7 +63,7 @@ ignore [ \t\r\f]
 "<<" {col += yyleng; if(flag) printf("LSHIFT\n"); return LSHIFT;}
 ">>" {col += yyleng; if(flag) printf("RSHIFT\n"); return RSHIFT;}
 "^"  {col += yyleng; if(flag) printf("XOR\n"); return XOR;}
-"true"|"false" {col += yyleng; if(flag) printf("BOOLLIT(%s)\n", yytext); return BOOLLIT;}
+"true"|"false" {col += yyleng; if(flag) printf("BOOLLIT(%s)\n", yytext); yylval.str = strdup(yytext); return BOOLLIT;}
 "boolean" {col += yyleng; if(flag) printf("BOOL\n"); return BOOL;}
 "class"   {col += yyleng; if(flag) printf("CLASS\n"); return CLASS;}
 ".length" {col += yyleng; if(flag) printf("DOTLENGTH\n");return DOTLENGTH;}
@@ -75,36 +79,15 @@ ignore [ \t\r\f]
 "String" {col += yyleng; if(flag) printf("STRING\n"); return STRING;}
 "void"   {col += yyleng; if(flag) printf("VOID\n"); return VOID;}
 "while"  {col += yyleng; if(flag) printf("WHILE\n"); return WHILE;}
-"Integer"|"null"|"System"|"--"|"++"|"abstract"|"continue"|"for"|"new"|"switch"|"assert"|"default"|"if"|"package"|"synchronized"|"boolean"|"do"|"goto"|"private"|"this"|"break"|"double"|"implements"|"protected"|"throw"|"byte"|"else"|"import"|"public"|"throws"|"case"|"enum"|"instanceof"|"return"|"transient"|"catch"|"extends"|"int"|"short"|"try"|"char"|"final"|"interface"|"static"|"void"|"class"|"finally"|"long"|"strictfp"|"volatile"|"const"|"float"|"native"|"super"|"while" {col += yyleng; if(flag) printf("RESERVED(%s)\n", yytext); return RESERVED;}
-{numnotzero}("_"*{num})* {col += yyleng; if(flag) printf("INTLIT(%s)\n", yytext); return INTLIT;}
-{num}("_"*{num})*(("e"|"E")("+"|"-"|"")("0."|"0"("0"|"_"+"0")*|("0"?"."{num}("_"*{num})*)|({num}("_"*{num})*("."({num}("_"*{num})*)?)?))) {col += yyleng; if(flag) printf("REALLIT(%s)\n", yytext); return REALLIT;}
-(("0"?"."{num}("_"*{num})*)|({num}("_"*{num})*("."({num}("_"*{num})*)?)))(("e"|"E")("+"|"-"|"")("0."|"0"|("0"?"."{num}("_"*{num})*)|({num}("_"*{num})*("."({num}("_"*{num})*)?)?)))? {col += yyleng; if(flag) printf("REALLIT(%s)\n", yytext); return REALLIT;}
-"0" {col += yyleng; if(flag) printf("INTLIT(%s)\n", yytext); return INTLIT;}
-{let}({let}|{num})* {col += yyleng; if(flag) printf("ID(%s)\n", yytext); return ID;}
+"Integer"|"null"|"System"|"--"|"++"|"abstract"|"continue"|"for"|"new"|"switch"|"assert"|"default"|"if"|"package"|"synchronized"|"boolean"|"do"|"goto"|"private"|"this"|"break"|"double"|"implements"|"protected"|"throw"|"byte"|"else"|"import"|"public"|"throws"|"case"|"enum"|"instanceof"|"return"|"transient"|"catch"|"extends"|"int"|"short"|"try"|"char"|"final"|"interface"|"static"|"void"|"class"|"finally"|"long"|"strictfp"|"volatile"|"const"|"float"|"native"|"super"|"while" {col += yyleng; if(flag) printf("RESERVED(%s)\n", yytext); yylval.str = strdup(yytext); return RESERVED;}
+{numnotzero}("_"*{num})* {col += yyleng; if(flag) printf("INTLIT(%s)\n", yytext); yylval.str = strdup(yytext); return INTLIT;}
+{num}("_"*{num})*(("e"|"E")("+"|"-"|"")("0."|"0"("0"|"_"+"0")*|("0"?"."{num}("_"*{num})*)|({num}("_"*{num})*("."({num}("_"*{num})*)?)?))) {col += yyleng; if(flag) printf("REALLIT(%s)\n", yytext); yylval.str = strdup(yytext); return REALLIT;}
+(("0"?"."{num}("_"*{num})*)|({num}("_"*{num})*("."({num}("_"*{num})*)?)))(("e"|"E")("+"|"-"|"")("0."|"0"|("0"?"."{num}("_"*{num})*)|({num}("_"*{num})*("."({num}("_"*{num})*)?)?)))? {col += yyleng; if(flag) printf("REALLIT(%s)\n", yytext); yylval.str = strdup(yytext); return REALLIT;}
+"0" {col += yyleng; if(flag) printf("INTLIT(%s)\n", yytext); yylval.str = strdup(yytext); return INTLIT;}
+{let}({let}|{num})* {col += yyleng; if(flag) printf("ID(%s)\n", yytext); yylval.str = strdup(yytext); return ID;}
 {ignore} {col += yyleng;}
 . {printf("Line %d, col %d: illegal character (%c)\n", line, col, yytext[0]); col += yyleng;}
 %%
-int main(int argc, char *argv[]){
-    if(argc > 1){
-        if(strcmp(argv[1], "-l") == 0) {
-            flag = 1;
-            yylex();
-        }
-        else if(strcmp(argv[1], "-e1") == 0) {
-            flag = 0;
-            yylex();
-        }
-        else if(strcmp(argv[1], "-e2") == 0) {
-            flag = 0;
-            yyparse();
-        }
-        else if(strcmp(argv[1], "-t") == 0) {
-            flag = 2;
-            yyparse();
-        }
-    }
-    return 0;
-}
 
 int yywrap(){
     return 1;
