@@ -1,41 +1,50 @@
 %{
-/*
-Autores:
-Gonçalo Almeida, nº2020218868
-João Santos, nº2020218995
-*/
+    /*
+        Autores:
+            Gonçalo Fernandes Diogo de Almeida, nº2020218868
+            João Bernardo de Jesus Santos, nº2020218995
+    */
+    
     #include <stdio.h>
     #include <stdlib.h>
     #include "y.tab.h"
-    #define MAX_STRING_SIZE 1024
 
-    extern int flag;
+    #define MAX_STRING_SIZE 32768
+
+    extern int flag, flag_yacc;
+    extern void yyerror(const char*);
+
     int line = 1, line_temp = 1;
     int col = 1, col_temp = 1;
     int current_string_pos = 0, print_string = 1;
     char string[MAX_STRING_SIZE];
 %}
+
 num [0-9]
 numnotzero [1-9]
 let [$_a-zA-Z]
 escape_chars [\\\"ntrf]
 invalid_escape [^\n\r\\\"ntrf]
 ignore [ \t\r\f]
+
 %X MLCOMMENT STRING_STATE
 %%
-"\n" {line++; col = 1;}
+"\r\n"|"\n"|"\r" {line++; col = 1;}
 "//"[^\r\n]* {;}
-"/*" {line_temp = line; col_temp = col; BEGIN (MLCOMMENT);}
-<MLCOMMENT>"*/" {line = line_temp; col = col_temp; BEGIN (0);}
-<MLCOMMENT>"\n" {line_temp++; col_temp = 1;}
+
+"/*" {line_temp = line; col_temp = col; col_temp += yyleng; BEGIN (MLCOMMENT);}
+<MLCOMMENT>"*/" {col_temp += yyleng; line = line_temp; col = col_temp; BEGIN (0);}
+<MLCOMMENT>"\r\n"|"\n"|"\r" {line_temp++; col_temp = 1;}
 <MLCOMMENT><<EOF>> {printf("Line %d, col %d: unterminated comment\n", line, col); BEGIN (0);}
-<MLCOMMENT>. {col_temp++;}
+<MLCOMMENT>. {col_temp+=yyleng;}
+
 "\"" {col_temp = col; col_temp += yyleng; current_string_pos = 0; print_string = 1; BEGIN (STRING);}
-<STRING_STATE>"\"" {col_temp += yyleng; string[0] = 0; col = col_temp; BEGIN (0); if(print_string) printf("STRLIT(\"%s\")\n", string); yylval.str = strdup(string); string[0] = 0; return STRLIT; }
+<STRING_STATE>"\"" {col_temp += yyleng;if(print_string && flag) printf("STRLIT(\"%s\")\n", string); yylval.str = strdup(string); string[0] = 0; col = col_temp; BEGIN (0); return STRLIT;}
 <STRING_STATE><<EOF>> {print_string = 0; printf("Line %d, col %d: unterminated string literal\n", line, col); BEGIN (0);}
-<STRING_STATE>"\n" {print_string = 0; printf("Line %d, col %d: unterminated string literal\n", line, col); string[0] = 0; line++; col = 1; BEGIN (0);}
+<STRING_STATE>"\r\n"|"\n"|"\r" {print_string = 0; printf("Line %d, col %d: unterminated string literal\n", line, col); string[0] = 0; line++; col = 1; BEGIN (0);}
 <STRING_STATE>("\\"{escape_chars})|[^\\] {col_temp += yyleng; strcpy(&string[current_string_pos], yytext); current_string_pos += yyleng;}
 <STRING_STATE>("\\"{invalid_escape}?) {print_string = 0; printf("Line %d, col %d: invalid escape sequence (%s)\n", line, col_temp, yytext); col_temp += yyleng;}
+
 "&&" {col += yyleng; if(flag) printf("AND\n"); return AND;}
 "="  {col += yyleng; if(flag) printf("ASSIGN\n"); return ASSIGN;}
 "*"  {col += yyleng; if(flag) printf("STAR\n"); return STAR;}
@@ -79,15 +88,37 @@ ignore [ \t\r\f]
 "String" {col += yyleng; if(flag) printf("STRING\n"); return STRING;}
 "void"   {col += yyleng; if(flag) printf("VOID\n"); return VOID;}
 "while"  {col += yyleng; if(flag) printf("WHILE\n"); return WHILE;}
-"Integer"|"null"|"System"|"--"|"++"|"abstract"|"continue"|"for"|"new"|"switch"|"assert"|"default"|"if"|"package"|"synchronized"|"boolean"|"do"|"goto"|"private"|"this"|"break"|"double"|"implements"|"protected"|"throw"|"byte"|"else"|"import"|"public"|"throws"|"case"|"enum"|"instanceof"|"return"|"transient"|"catch"|"extends"|"int"|"short"|"try"|"char"|"final"|"interface"|"static"|"void"|"class"|"finally"|"long"|"strictfp"|"volatile"|"const"|"float"|"native"|"super"|"while" {col += yyleng; if(flag) printf("RESERVED(%s)\n", yytext); yylval.str = strdup(yytext); return RESERVED;}
+"Integer"|"null"|"System"|"--"|"++"|"abstract"|"continue"|"for"|"new"|"switch"|"assert"|"default"|"if"|"package"|"synchronized"|"boolean"|"do"|"goto"|"private"|"this"|"break"|"double"|"implements"|"protected"|"throw"|"byte"|"else"|"import"|"public"|"throws"|"case"|"enum"|"instanceof"|"return"|"transient"|"catch"|"extends"|"int"|"short"|"try"|"char"|"final"|"interface"|"static"|"void"|"class"|"finally"|"long"|"strictfp"|"volatile"|"const"|"float"|"native"|"super"|"while"  {col += yyleng; if(flag) printf("RESERVED(%s)\n", yytext); yylval.str = strdup(yytext); return RESERVED;}
 {numnotzero}("_"*{num})* {col += yyleng; if(flag) printf("INTLIT(%s)\n", yytext); yylval.str = strdup(yytext); return INTLIT;}
-{num}("_"*{num})*(("e"|"E")("+"|"-"|"")("0."|"0"("0"|"_"+"0")*|("0"?"."{num}("_"*{num})*)|({num}("_"*{num})*("."({num}("_"*{num})*)?)?))) {col += yyleng; if(flag) printf("REALLIT(%s)\n", yytext); yylval.str = strdup(yytext); return REALLIT;}
-(("0"?"."{num}("_"*{num})*)|({num}("_"*{num})*("."({num}("_"*{num})*)?)))(("e"|"E")("+"|"-"|"")("0."|"0"|("0"?"."{num}("_"*{num})*)|({num}("_"*{num})*("."({num}("_"*{num})*)?)?)))? {col += yyleng; if(flag) printf("REALLIT(%s)\n", yytext); yylval.str = strdup(yytext); return REALLIT;}
+{num}("_"*{num})*(("e"|"E")("+"|"-"|""){num}("_"*{num})*) {col += yyleng; if(flag) printf("REALLIT(%s)\n", yytext); yylval.str = strdup(yytext); return REALLIT;}
+(("0"?"."{num}("_"*{num})*)|({num}("_"*{num})*("."({num}("_"*{num})*)?)))(("e"|"E")("+"|"-"|""){num}("_"*{num})*)? {col += yyleng; if(flag) printf("REALLIT(%s)\n", yytext); yylval.str = strdup(yytext); return REALLIT;}
 "0" {col += yyleng; if(flag) printf("INTLIT(%s)\n", yytext); yylval.str = strdup(yytext); return INTLIT;}
 {let}({let}|{num})* {col += yyleng; if(flag) printf("ID(%s)\n", yytext); yylval.str = strdup(yytext); return ID;}
 {ignore} {col += yyleng;}
-. {printf("Line %d, col %d: illegal character (%c)\n", line, col, yytext[0]); col += yyleng;}
+. {printf("Line %d, col %d: illegal character (%s)\n", line, col, yytext); col += yyleng;}
 %%
+
+int main(int argc, char *argv[]){
+    if(argc > 1){
+        if(strcmp(argv[1], "-l") == 0) {
+            flag = 1;
+            yylex();
+        }
+        else if(strcmp(argv[1], "-e1") == 0) {
+            flag = 0;
+            yylex();
+        }
+        else if(strcmp(argv[1], "-e2") == 0) {
+            flag_yacc = 0;
+            yyparse();
+        }
+        else if(strcmp(argv[1], "-t") == 0) {
+            flag_yacc = 1;
+            yyparse();
+        }
+    }
+    return 0;
+}
 
 int yywrap(){
     return 1;
