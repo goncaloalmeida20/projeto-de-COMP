@@ -58,10 +58,10 @@ Type: BOOL                                          {printf("Bool\n");}
     | DOUBLE                                        {printf("Double\n");}
     ;
 
-MethodHeader: Type ID LPAR RPAR                     {printf("MethodHeader\n");printf("Type %s\n", $2);}
-    | Type ID LPAR FormalParams RPAR                {printf("MethodHeader\n");printf("Type %s\n", $2);}
-    | VOID ID LPAR RPAR                             {printf("MethodHeader\n");printf("Type %s\n", $2);}
-    | VOID ID LPAR FormalParams RPAR                {printf("MethodHeader\n");printf("Type %s\n", $2);}
+MethodHeader: Type ID LPAR RPAR                     {printf("MethodHeader\n");printf("Id %s\n", $2);}
+    | Type ID LPAR FormalParams RPAR                {printf("MethodHeader\n");printf("Id %s\n", $2);}
+    | VOID ID LPAR RPAR                             {printf("MethodHeader\n");printf("Id %s\n", $2);}
+    | VOID ID LPAR FormalParams RPAR                {printf("MethodHeader\n");printf("Id %s\n", $2);}
     ;
 
 FormalParams: Type ID                               {printf("Id %s\n", $2);}
@@ -149,6 +149,7 @@ Expr: Expr PLUS Expr                                {printf("Sum\n");}
     | BOOLLIT                                       {printf("BoolLit %s\n", $1);}
     ;
 %%
+/*
 int main(int argc, char *argv[]){
     if(argc > 1){
         if(strcmp(argv[1], "-l") == 0) {
@@ -169,7 +170,7 @@ int main(int argc, char *argv[]){
         }
     }
     return 0;
-}
+}*/
 void yyerror (const char *s) { 
   printf ("%s: %s\n", s, yytext);
 }
