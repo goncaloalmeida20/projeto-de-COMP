@@ -1,4 +1,10 @@
 %{
+    /*
+        Autores:
+            Gonçalo Fernandes Diogo de Almeida, nº2020218868
+            João Bernardo de Jesus Santos, nº2020218995
+    */
+    
     #include <stdio.h>
     #include <stdlib.h>
     #include <string.h>
