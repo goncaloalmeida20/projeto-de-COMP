@@ -9,12 +9,12 @@ Node* create_node(char * type, char * value) {
 }
 
 void add_son(Node * fat, Node * son) {
-    if (fat == NULL || son == NULL) {printf("ERRO ADICIONAR FILHO\n"); return}
+    if (fat == NULL || son == NULL) {printf("ERRO ADICIONAR FILHO\n"); return;}
     fat->son = son;
 }
 
 void add_bro(Node * n, Node * bro) {
-    if (n == NULL || bro == NULL) {printf("ERRO ADICIONAR BROTHA\n"); return}
+    if (n == NULL || bro == NULL) {printf("ERRO ADICIONAR BROTHA\n"); return;}
     n->bro = bro;
 }
 
