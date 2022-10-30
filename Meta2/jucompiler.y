@@ -1,19 +1,22 @@
 %{
-/*
-Autores:
-Gonçalo Almeida, nº2020218868
-João Santos, nº2020218995
-*/
+    /*
+        Autores:
+            Gonçalo Fernandes Diogo de Almeida, nº2020218868
+            João Bernardo de Jesus Santos, nº2020218995
+    */
+    
     #include <stdio.h>
     #include <string.h>
+    #include "tree.h"
 
     extern int yylex(void);
     extern void yyerror(const char*);
     extern char* yytext;
+    char current_type[SIZE];
     int flag = 0, flag_yacc = 0;
 
 %}
-%union{char* str;}
+%union{char* str; Node* node;}
 %token BOOL INT DOUBLE AND ASSIGN STAR COMMA DIV EQ GE GT LBRACE LE LPAR LSQ LT MINUS MOD NE NOT OR PLUS RBRACE RPAR RSQ SEMICOLON ARROW LSHIFT RSHIFT XOR CLASS DOTLENGTH ELSE IF PRINT PARSEINT PUBLIC RETURN STATIC STRING VOID WHILE
 %token <str> RESERVED STRLIT BOOLLIT INTLIT REALLIT ID
 %nonassoc ASSIGN
@@ -29,33 +32,34 @@ João Santos, nº2020218995
 %left STAR DIV
 %left MOD
 %right NOT
+%type <node> MethodFieldDecl MethodDecl FieldDecl CommaId Type
 %%
 
-Program: CLASS ID LBRACE RBRACE                     {printf("Id %s\n", $2);}                   
-    | CLASS ID LBRACE MethodFieldDecl RBRACE        {printf("Id %s\n", $2);}   
+Program: CLASS ID LBRACE RBRACE                     {root = create_node("Program", NULL); add_son(root, create_node("Id",$2));}                   
+    | CLASS ID LBRACE MethodFieldDecl RBRACE        {root = create_node("Program", NULL); add_son(root, add_bro(create_node("ID",$2), $4));}   
     ;
 
-MethodFieldDecl: MethodDecl                         {;}
-    | FieldDecl                                     {;}
-    | SEMICOLON                                     {;}
-    | MethodDecl MethodFieldDecl                    {;}
-    | FieldDecl MethodFieldDecl                     {;}
-    | SEMICOLON MethodFieldDecl                     {;}
+MethodFieldDecl: MethodDecl                         {$$=$1;}
+    | FieldDecl                                     {$$=$1;}
+    | SEMICOLON                                     {$$=NULL;}
+    | MethodDecl MethodFieldDecl                    {$$=add_bro($1,$2);}
+    | FieldDecl MethodFieldDecl                     {$$=add_bro($1,$2);}
+    | SEMICOLON MethodFieldDecl                     {$$=$2;}
     ;
 
-MethodDecl: PUBLIC STATIC MethodHeader MethodBody   {printf("MethodDecl\n");}
+MethodDecl: PUBLIC STATIC MethodHeader MethodBody   {$$=create_node("MethodDecl", NULL);}
 
-FieldDecl: PUBLIC STATIC Type ID SEMICOLON          {printf("FieldDecl\n");printf("Id %s\n", $4);} 
-    | PUBLIC STATIC Type ID CommaId SEMICOLON       {printf("FieldDecl\n");printf("Id %s\n", $4);}   
+FieldDecl: PUBLIC STATIC Type ID SEMICOLON          {$$=add_son(create_node("FieldDecl",NULL), add_bro(create_node(current_type, NULL), create_node("Id", $4)));} 
+    | PUBLIC STATIC Type ID CommaId SEMICOLON       {$$=add_bro(add_son(create_node("FieldDecl",NULL), add_bro(create_node(current_type, NULL), create_node("Id", $4))), $5);}   
     ;
 
-CommaId: COMMA ID                                   {printf("Id %s\n", $2);}   
-    | COMMA ID CommaId                              {printf("Id %s\n", $2);}   
+CommaId: COMMA ID                                   {$$=add_son(create_node("FieldDecl",NULL), add_bro(create_node(current_type, NULL), create_node("Id", $2)));}   
+    | COMMA ID CommaId                              {$$=add_bro(add_son(create_node("FieldDecl",NULL), add_bro(create_node(current_type, NULL), create_node("Id", $2))), $3);}   
     ;
 
-Type: BOOL                                          {printf("Bool\n");}
-    | INT                                           {printf("Int\n");}
-    | DOUBLE                                        {printf("Double\n");}
+Type: BOOL                                          {strcpy(current_type, "Bool");}
+    | INT                                           {strcpy(current_type, "Int");}
+    | DOUBLE                                        {strcpy(current_type, "Double");}
     ;
 
 MethodHeader: Type ID LPAR RPAR                     {printf("MethodHeader\n");printf("Id %s\n", $2);}
