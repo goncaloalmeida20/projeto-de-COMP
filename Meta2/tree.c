@@ -20,19 +20,23 @@ Node* create_node(char * type, char * value) {
     return node;
 }
 
-Node* add_son(Node * fat, Node * son) {
+Node* add_son(Node *fat, Node *son) {
     if (fat == NULL) {printf("ERRO ADICIONAR FILHO\n"); return NULL;}
     fat->son = son;
     return fat;
 }
 
-Node* add_bro(Node * n, Node * bro) {
-    if (n == NULL) {printf("ERRO ADICIONAR BROTHA\n"); return NULL;}
-    n->bro = bro;
+Node* add_bro(Node *n, Node *bro) {
+    if (n == NULL && bro == NULL) {printf("ERRO ADICIONAR BROTHA\n"); return NULL;}
+    if (n == NULL) return bro;
+    if (bro == NULL) return n;
+    Node *n_bro = n;
+    while(n_bro->bro != NULL) n_bro = n_bro->bro;
+    n_bro->bro = bro;
     return n;
 }
 
-void print_tree(Node* n, int level){
+void print_tree(Node *n, int level){
     if (n == NULL) return;
     int i;
     
