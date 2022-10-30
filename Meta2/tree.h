@@ -1,14 +1,22 @@
+#ifndef TREE_H
+#define TREE_H
+
+#define SIZE 1024
+
 typedef struct node{
-	char * type;
-	char * value;
+	char *type;
+	char *value;
 	struct node * son;
+    struct node * bro;
 } Node;
 
-Node* root;
+extern Node* root;
 
 Node* create_node(char * type, char * value);
-void add_son(Node * fat, Node * son);
-void add_bro(Node * n, Node * bro);
+Node* add_son(Node * fat, Node * son);
+Node* add_bro(Node * n, Node * bro);
 
 void print_tree(Node* n, int level);
 void free_tree(Node* n);
+
+#endif
