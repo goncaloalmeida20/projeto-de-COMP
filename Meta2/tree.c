@@ -1,32 +1,47 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "tree.h"
+
+Node* root;
+
 Node* create_node(char * type, char * value) {
     Node* node = (Node*) malloc(sizeof(Node));
     if (node == NULL) {printf("ERRO MEMÓRIA\n"); exit(0);} // No memory
-    node->type = type;
-	node->value = value;
+
+    node->type = strdup(type);
+
+    if (value == NULL) node->value = NULL;
+    else node->value = strdup(value);
+        
     node->bro = NULL;
 	node->son = NULL;
+
     return node;
 }
 
-void add_son(Node * fat, Node * son) {
-    if (fat == NULL || son == NULL) {printf("ERRO ADICIONAR FILHO\n"); return;}
+Node* add_son(Node * fat, Node * son) {
+    if (fat == NULL) {printf("ERRO ADICIONAR FILHO\n"); return NULL;}
     fat->son = son;
+    return fat;
 }
 
-void add_bro(Node * n, Node * bro) {
-    if (n == NULL || bro == NULL) {printf("ERRO ADICIONAR BROTHA\n"); return;}
+Node* add_bro(Node * n, Node * bro) {
+    if (n == NULL) {printf("ERRO ADICIONAR BROTHA\n"); return NULL;}
     n->bro = bro;
+    return n;
 }
 
 void print_tree(Node* n, int level){
     if (n == NULL) return;
-    char points[level * 2];
     int i;
-    for(i = 0; i < level * 2; i++) points[i] = '.';
+    
+    for(i = 0; i < level * 2; i++) putchar('.');
     if (n->value == NULL) printf("%s\n", n->type);
     else printf("%s(%s)\n", n->type, n->value);
-    print_tree(n->son);
-    print_tree(n->bro);
+
+    print_tree(n->son, level+1);
+    print_tree(n->bro, level);
 }
 
 void free_tree(Node* n){
