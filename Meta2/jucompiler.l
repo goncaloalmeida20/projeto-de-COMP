@@ -7,6 +7,7 @@
     
     #include <stdio.h>
     #include <stdlib.h>
+    #include "tree.h"
     #include "y.tab.h"
 
     #define MAX_STRING_SIZE 32768
@@ -39,7 +40,7 @@ ignore [ \t\r\f]
 <MLCOMMENT>. {col_temp+=yyleng;}
 
 "\"" {col_temp = col; col_temp += yyleng; current_string_pos = 0; print_string = 1; BEGIN (STRING);}
-<STRING_STATE>"\"" {col_temp += yyleng;if(print_string && flag) printf("STRLIT(\"%s\")\n", string); yylval.str = strdup(string); string[0] = 0; col = col_temp; BEGIN (0); return STRLIT;}
+<STRING_STATE>"\"" {col_temp += yyleng; if(print_string && flag) printf("STRLIT(\"%s\")\n", string); yylval.str = strdup(string); string[0] = 0; col = col_temp; BEGIN (0); return STRLIT;}
 <STRING_STATE><<EOF>> {print_string = 0; printf("Line %d, col %d: unterminated string literal\n", line, col); BEGIN (0);}
 <STRING_STATE>"\r\n"|"\n"|"\r" {print_string = 0; printf("Line %d, col %d: unterminated string literal\n", line, col); string[0] = 0; line++; col = 1; BEGIN (0);}
 <STRING_STATE>("\\"{escape_chars})|[^\\] {col_temp += yyleng; strcpy(&string[current_string_pos], yytext); current_string_pos += yyleng;}
@@ -115,6 +116,7 @@ int main(int argc, char *argv[]){
         else if(strcmp(argv[1], "-t") == 0) {
             flag_yacc = 1;
             yyparse();
+            print_tree(root, 0);
         }
     }
     return 0;
