@@ -32,11 +32,11 @@
 %left STAR DIV
 %left MOD
 %right NOT
-%type <node> MethodFieldDecl MethodDecl FieldDecl CommaId Type
+%type <node> MethodFieldDecl MethodDecl FieldDecl FieldCommaId Type MethodHeader MethodBody FormalParams StatementVarDecl CommaTypeIds VarDecl VarCommaId Statement     MethodInvocation CommaExpr Assignment ParseArgs Expr
 %%
 
 Program: CLASS ID LBRACE RBRACE                     {root = create_node("Program", NULL); add_son(root, create_node("Id",$2));}                   
-    | CLASS ID LBRACE MethodFieldDecl RBRACE        {root = create_node("Program", NULL); add_son(root, add_bro(create_node("ID",$2), $4));}   
+    | CLASS ID LBRACE MethodFieldDecl RBRACE        {root = create_node("Program", NULL); add_son(root, add_bro(create_node("Id",$2), $4));}   
     ;
 
 MethodFieldDecl: MethodDecl                         {$$=$1;}
@@ -47,49 +47,54 @@ MethodFieldDecl: MethodDecl                         {$$=$1;}
     | SEMICOLON MethodFieldDecl                     {$$=$2;}
     ;
 
-MethodDecl: PUBLIC STATIC MethodHeader MethodBody   {$$=create_node("MethodDecl", NULL);}
+MethodDecl: PUBLIC STATIC MethodHeader MethodBody   {$$=add_son(create_node("MethodDecl", NULL), add_bro($3, $4));}
 
-FieldDecl: PUBLIC STATIC Type ID SEMICOLON          {$$=add_son(create_node("FieldDecl",NULL), add_bro(create_node(current_type, NULL), create_node("Id", $4)));} 
-    | PUBLIC STATIC Type ID CommaId SEMICOLON       {$$=add_bro(add_son(create_node("FieldDecl",NULL), add_bro(create_node(current_type, NULL), create_node("Id", $4))), $5);}   
+FieldDecl: PUBLIC STATIC Type ID SEMICOLON          {$$=add_son(create_node("FieldDecl",NULL), add_bro($3, create_node("Id", $4)));} 
+    | PUBLIC STATIC Type ID FieldCommaId SEMICOLON  {$$=add_bro(add_son(create_node("FieldDecl",NULL), add_bro($3, create_node("Id", $4))), $5);}   
     ;
 
-CommaId: COMMA ID                                   {$$=add_son(create_node("FieldDecl",NULL), add_bro(create_node(current_type, NULL), create_node("Id", $2)));}   
-    | COMMA ID CommaId                              {$$=add_bro(add_son(create_node("FieldDecl",NULL), add_bro(create_node(current_type, NULL), create_node("Id", $2))), $3);}   
+FieldCommaId: COMMA ID                              {$$=add_son(create_node("FieldDecl",NULL), add_bro(create_node(current_type, NULL), create_node("Id", $2)));}   
+    | COMMA ID FieldCommaId                         {$$=add_bro(add_son(create_node("FieldDecl",NULL), add_bro(create_node(current_type, NULL), create_node("Id", $2))), $3);}   
     ;
 
-Type: BOOL                                          {strcpy(current_type, "Bool");}
-    | INT                                           {strcpy(current_type, "Int");}
-    | DOUBLE                                        {strcpy(current_type, "Double");}
+Type: BOOL                                          {$$=create_node("Bool", NULL); strcpy(current_type, "Bool"); }
+    | INT                                           {$$=create_node("Int", NULL); strcpy(current_type, "Int");}
+    | DOUBLE                                        {$$=create_node("Double", NULL); strcpy(current_type, "Double"); }
     ;
 
-MethodHeader: Type ID LPAR RPAR                     {printf("MethodHeader\n");printf("Id %s\n", $2);}
-    | Type ID LPAR FormalParams RPAR                {printf("MethodHeader\n");printf("Id %s\n", $2);}
-    | VOID ID LPAR RPAR                             {printf("MethodHeader\n");printf("Id %s\n", $2);}
-    | VOID ID LPAR FormalParams RPAR                {printf("MethodHeader\n");printf("Id %s\n", $2);}
+MethodHeader: Type ID LPAR RPAR                     {$$=add_son(create_node("MethodHeader", NULL), add_bro($1, create_node("Id",$2)));}
+    | Type ID LPAR FormalParams RPAR                {$$=add_son(create_node("MethodHeader", NULL), add_bro($1, add_bro(create_node("Id",$2), add_son(create_node("MethodParams", NULL),$4))));}
+    | VOID ID LPAR RPAR                             {$$=add_son(create_node("MethodHeader", NULL), add_bro(create_node("Void", NULL), create_node("Id",$2)));}
+    | VOID ID LPAR FormalParams RPAR                {$$=add_son(create_node("MethodHeader", NULL), add_bro(create_node("Void", NULL), add_bro(create_node("Id",$2), $4)));}
     ;
 
-FormalParams: Type ID                               {printf("Id %s\n", $2);}
-    | Type ID CommaTypeIds                          {printf("Id %s\n", $2);}
-    | STRING LSQ RSQ ID                             {printf("Id %s\n", $4);}
+FormalParams: Type ID                               {$$=add_son(create_node("ParamDecl", NULL), add_bro($1, create_node("Id", $2)));}
+    | Type ID CommaTypeIds                          {$$=add_bro(add_son(create_node("ParamDecl", NULL), add_bro($1, create_node("Id", $2))),$3);}
+    | STRING LSQ RSQ ID                             {$$=add_son(create_node("ParamDecl", NULL), add_bro(create_node("StringArray", NULL), create_node("Id", $4)));}
     ;
 
-CommaTypeIds: COMMA Type ID                         {printf("Id %s\n", $3);}
-    | COMMA Type ID CommaTypeIds                    {printf("Id %s\n", $3);}
+CommaTypeIds: COMMA Type ID                         {$$=add_son(create_node("ParamDecl", NULL), add_bro($2, create_node("Id", $3)));}
+    | COMMA Type ID CommaTypeIds                    {$$=add_bro(add_son(create_node("ParamDecl", NULL), add_bro($2, create_node("Id", $3))),$4);}
     ;
 
-MethodBody: LBRACE RBRACE                           {printf("MethodBody\n");}
-    | LBRACE StatementVarDecl RBRACE                {printf("MethodBody\n");}
+MethodBody: LBRACE RBRACE                           {$$=create_node("MethodBody", NULL);}
+    | LBRACE StatementVarDecl RBRACE                {$$=add_son(create_node("MethodBody", NULL), $2);}
     ;
 
-StatementVarDecl: Statement                         {;}    
-    | VarDecl                                       {;}
-    | Statement StatementVarDecl                    {;}
-    | VarDecl StatementVarDecl                      {;}
+StatementVarDecl: Statement                         {$$=$1;}    
+    | VarDecl                                       {$$=$1;}
+    | Statement StatementVarDecl                    {$$=add_bro($1,$2);}
+    | VarDecl StatementVarDecl                      {$$=add_bro($1,$2);}
     ;
 
-VarDecl: Type ID CommaId SEMICOLON                  {printf("Id %s\n", $2);}
-    | Type ID SEMICOLON                             {printf("Id %s\n", $2);}
+VarDecl: Type ID SEMICOLON                          {$$=add_son(create_node("VarDecl",NULL), add_bro($1, create_node("Id", $2)));}
+    | Type ID VarCommaId SEMICOLON                  {$$=add_bro(add_son(create_node("VarDecl",NULL), add_bro($1, create_node("Id", $2))), $3);}
     ;
+
+VarCommaId: COMMA ID                                {$$=add_son(create_node("VarDecl",NULL), add_bro(create_node(current_type, NULL), create_node("Id", $2)));}   
+    | COMMA ID VarCommaId                           {$$=add_bro(add_son(create_node("VarDecl",NULL), add_bro(create_node(current_type, NULL), create_node("Id", $2))), $3);}   
+    ;
+
 
 Statement: LBRACE RBRACE                            {;}
     | LBRACE MultipleStatements RBRACE              {;}
@@ -98,7 +103,7 @@ Statement: LBRACE RBRACE                            {;}
     | WHILE LPAR Expr RPAR Statement                {;}
     | RETURN SEMICOLON                              {;}
     | RETURN Expr SEMICOLON                         {;}
-    | SEMICOLON                                     {;}
+    | SEMICOLON                                     {$$=NULL;}
     | MethodInvocation SEMICOLON                    {;}
     | Assignment SEMICOLON                          {;}
     | ParseArgs SEMICOLON                           {;}
