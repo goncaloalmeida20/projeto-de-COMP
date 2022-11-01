@@ -27,7 +27,7 @@ Node* add_son(Node *fat, Node *son) {
 }
 
 Node* add_bro(Node *n, Node *bro) {
-    if (n == NULL && bro == NULL) {printf("ERRO ADICIONAR BROTHA\n"); return NULL;}
+    if (n == NULL && bro == NULL) {return NULL;}
     if (n == NULL) return bro;
     if (bro == NULL) return n;
     Node *n_bro = n;
@@ -42,7 +42,10 @@ void print_tree(Node *n, int level){
     
     for(i = 0; i < level * 2; i++) putchar('.');
     if (n->value == NULL) printf("%s\n", n->type);
-    else printf("%s(%s)\n", n->type, n->value);
+    else{
+        if(strcmp(n->type, "StrLit") == 0) printf("%s(\"%s\")\n", n->type, n->value);
+        else printf("%s(%s)\n", n->type, n->value);
+    } 
 
     print_tree(n->son, level+1);
     print_tree(n->bro, level);
@@ -53,4 +56,15 @@ void free_tree(Node* n){
     free_tree(n->son);
     free_tree(n->bro);
     free(n);
+}
+
+Node* add_if(Node *expr, Node *statement_if, Node *statement_else){
+    if(statement_if == NULL) statement_if = create_node("Block", NULL);
+    if(statement_else == NULL) statement_else = create_node("Block", NULL);
+    return add_son(create_node("If", NULL), add_bro(expr, add_bro(statement_if,statement_else)));
+}
+
+Node* add_while(Node *expr, Node *statement_while){
+    if(statement_while == NULL) statement_while = create_node("Block", NULL);
+    return add_son(create_node("While", NULL), add_bro(expr, statement_while));
 }
