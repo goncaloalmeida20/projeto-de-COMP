@@ -35,6 +35,7 @@
 %left PLUS MINUS
 %left STAR DIV
 %left MOD
+%right UNARY
 %right NOT
 %type <node> MethodFieldDecl MethodDecl FieldDecl FieldCommaId Type MethodHeader MethodBody FormalParams StatementVarDecl CommaTypeIds VarDecl VarCommaId Statement MultipleStatements   MethodInvocation CommaExpr Assignment ParseArgs Expr
 %%
@@ -101,7 +102,7 @@ VarCommaId: COMMA ID                                {$$=add_son(create_node("Var
     ;
 
 
-Statement: LBRACE RBRACE                            {$$=NULL;}
+Statement: LBRACE RBRACE                            {$$=create_node("Block", NULL);}
     | LBRACE Statement RBRACE                       {$$=$2;}
     | LBRACE Statement MultipleStatements RBRACE    {$$=add_son(create_node("Block", NULL), add_bro($2, $3));}
     | IF LPAR Expr RPAR Statement                   {$$=add_if($3, $5, NULL);}
@@ -139,7 +140,7 @@ ParseArgs: PARSEINT LPAR ID LSQ Expr RSQ RPAR       {$$=add_bro(create_node("Id"
     ;
 
 Expr: Expr PLUS Expr                                {$$=add_son(create_node("Add", NULL), add_bro($1, $3));} 
-    | Expr MINUS Expr                               {$$=add_son(create_node("Minus", NULL), add_bro($1, $3));} 
+    | Expr MINUS Expr                               {$$=add_son(create_node("Sub", NULL), add_bro($1, $3));} 
     | Expr STAR Expr                                {$$=add_son(create_node("Mul", NULL), add_bro($1, $3));} 
     | Expr DIV Expr                                 {$$=add_son(create_node("Div", NULL), add_bro($1, $3));} 
     | Expr MOD Expr                                 {$$=add_son(create_node("Mod", NULL), add_bro($1, $3));} 
@@ -154,9 +155,9 @@ Expr: Expr PLUS Expr                                {$$=add_son(create_node("Add
     | Expr LE Expr                                  {$$=add_son(create_node("Le", NULL), add_bro($1, $3));} 
     | Expr LT Expr                                  {$$=add_son(create_node("Lt", NULL), add_bro($1, $3));} 
     | Expr NE Expr                                  {$$=add_son(create_node("Ne", NULL), add_bro($1, $3));} 
-    | MINUS Expr                                    {$$=add_son(create_node("Minus", NULL), $2);} 
+    | MINUS Expr                       %prec UNARY  {$$=add_son(create_node("Minus", NULL), $2);} 
     | NOT Expr                                      {$$=add_son(create_node("Not", NULL), $2);} 
-    | PLUS Expr                                     {$$=add_son(create_node("Add", NULL), $2);} 
+    | PLUS Expr                        %prec UNARY  {$$=add_son(create_node("Add", NULL), $2);} 
     | LPAR Expr RPAR                                {$$=$2;}
     | MethodInvocation                              {$$=add_son(create_node("Call", NULL), $1);} 
     | Assignment                                    {$$=add_son(create_node("Assign", NULL), $1);} 
