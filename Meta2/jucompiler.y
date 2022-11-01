@@ -10,29 +10,33 @@
     #include "tree.h"
 
     extern int yylex(void);
-    extern void yyerror(const char*);
+    extern void yyerror(char*);
     extern char* yytext;
+    
     char current_type[SIZE];
-    int flag = 0, flag_yacc = 0;
+
+    int line_yacc = 1, col_yacc = 1;
+    int flag_yacc = 0;
 
 %}
 %union{char* str; Node* node;}
 %token BOOL INT DOUBLE AND ASSIGN STAR COMMA DIV EQ GE GT LBRACE LE LPAR LSQ LT MINUS MOD NE NOT OR PLUS RBRACE RPAR RSQ SEMICOLON ARROW LSHIFT RSHIFT XOR CLASS DOTLENGTH ELSE IF PRINT PARSEINT PUBLIC RETURN STATIC STRING VOID WHILE
 %token <str> RESERVED STRLIT BOOLLIT INTLIT REALLIT ID
-%nonassoc ASSIGN
-%nonassoc EQ GE GT LE LT NE
 %right LPAR
 %left RPAR
 %right IF ELSE
+%left ASSIGN
 %left OR
 %left AND
 %left XOR
+%left EQ NE
+%left GE GT LE LT
 %left LSHIFT RSHIFT
 %left PLUS MINUS
 %left STAR DIV
 %left MOD
 %right NOT
-%type <node> MethodFieldDecl MethodDecl FieldDecl FieldCommaId Type MethodHeader MethodBody FormalParams StatementVarDecl CommaTypeIds VarDecl VarCommaId Statement     MethodInvocation CommaExpr Assignment ParseArgs Expr
+%type <node> MethodFieldDecl MethodDecl FieldDecl FieldCommaId Type MethodHeader MethodBody FormalParams StatementVarDecl CommaTypeIds VarDecl VarCommaId Statement MultipleStatements   MethodInvocation CommaExpr Assignment ParseArgs Expr
 %%
 
 Program: CLASS ID LBRACE RBRACE                     {root = create_node("Program", NULL); add_son(root, create_node("Id",$2));}                   
@@ -51,6 +55,7 @@ MethodDecl: PUBLIC STATIC MethodHeader MethodBody   {$$=add_son(create_node("Met
 
 FieldDecl: PUBLIC STATIC Type ID SEMICOLON          {$$=add_son(create_node("FieldDecl",NULL), add_bro($3, create_node("Id", $4)));} 
     | PUBLIC STATIC Type ID FieldCommaId SEMICOLON  {$$=add_bro(add_son(create_node("FieldDecl",NULL), add_bro($3, create_node("Id", $4))), $5);}   
+    | error SEMICOLON                               {$$=NULL;}
     ;
 
 FieldCommaId: COMMA ID                              {$$=add_son(create_node("FieldDecl",NULL), add_bro(create_node(current_type, NULL), create_node("Id", $2)));}   
@@ -62,10 +67,10 @@ Type: BOOL                                          {$$=create_node("Bool", NULL
     | DOUBLE                                        {$$=create_node("Double", NULL); strcpy(current_type, "Double"); }
     ;
 
-MethodHeader: Type ID LPAR RPAR                     {$$=add_son(create_node("MethodHeader", NULL), add_bro($1, create_node("Id",$2)));}
+MethodHeader: Type ID LPAR RPAR                     {$$=add_son(create_node("MethodHeader", NULL), add_bro($1, add_bro(create_node("Id",$2), create_node("MethodParams", NULL))));}
     | Type ID LPAR FormalParams RPAR                {$$=add_son(create_node("MethodHeader", NULL), add_bro($1, add_bro(create_node("Id",$2), add_son(create_node("MethodParams", NULL),$4))));}
-    | VOID ID LPAR RPAR                             {$$=add_son(create_node("MethodHeader", NULL), add_bro(create_node("Void", NULL), create_node("Id",$2)));}
-    | VOID ID LPAR FormalParams RPAR                {$$=add_son(create_node("MethodHeader", NULL), add_bro(create_node("Void", NULL), add_bro(create_node("Id",$2), $4)));}
+    | VOID ID LPAR RPAR                             {$$=add_son(create_node("MethodHeader", NULL), add_bro(create_node("Void", NULL), add_bro(create_node("Id",$2), create_node("MethodParams", NULL))));}
+    | VOID ID LPAR FormalParams RPAR                {$$=add_son(create_node("MethodHeader", NULL), add_bro(create_node("Void", NULL), add_bro(create_node("Id",$2), add_son(create_node("MethodParams", NULL),$4))));}
     ;
 
 FormalParams: Type ID                               {$$=add_son(create_node("ParamDecl", NULL), add_bro($1, create_node("Id", $2)));}
@@ -96,67 +101,74 @@ VarCommaId: COMMA ID                                {$$=add_son(create_node("Var
     ;
 
 
-Statement: LBRACE RBRACE                            {;}
-    | LBRACE MultipleStatements RBRACE              {;}
-    | IF LPAR Expr RPAR Statement                   {;}
-    | IF LPAR Expr RPAR Statement ELSE Statement    {;}
-    | WHILE LPAR Expr RPAR Statement                {;}
-    | RETURN SEMICOLON                              {;}
-    | RETURN Expr SEMICOLON                         {;}
+Statement: LBRACE RBRACE                            {$$=NULL;}
+    | LBRACE Statement RBRACE                       {$$=$2;}
+    | LBRACE Statement MultipleStatements RBRACE    {$$=add_son(create_node("Block", NULL), add_bro($2, $3));}
+    | IF LPAR Expr RPAR Statement                   {$$=add_if($3, $5, NULL);}
+    | IF LPAR Expr RPAR Statement ELSE Statement    {$$=add_if($3, $5, $7);}
+    | WHILE LPAR Expr RPAR Statement                {$$=add_while($3, $5);}
+    | RETURN SEMICOLON                              {$$=create_node("Return", NULL);}
+    | RETURN Expr SEMICOLON                         {$$=add_son(create_node("Return", NULL), $2);}
     | SEMICOLON                                     {$$=NULL;}
-    | MethodInvocation SEMICOLON                    {;}
-    | Assignment SEMICOLON                          {;}
-    | ParseArgs SEMICOLON                           {;}
-    | PRINT LPAR STRLIT RPAR SEMICOLON              {;}
-    | PRINT LPAR Expr RPAR SEMICOLON                {;}
+    | MethodInvocation SEMICOLON                    {$$=add_son(create_node("Call", NULL), $1);}
+    | Assignment SEMICOLON                          {$$=add_son(create_node("Assign", NULL), $1);}
+    | ParseArgs SEMICOLON                           {$$=add_son(create_node("ParseArgs", NULL), $1);}
+    | PRINT LPAR STRLIT RPAR SEMICOLON              {$$=add_son(create_node("Print", NULL), create_node("StrLit", $3));}
+    | PRINT LPAR Expr RPAR SEMICOLON                {$$=add_son(create_node("Print",NULL), $3);}
+    | error SEMICOLON                               {$$=NULL;}
     ;
 
-MultipleStatements: Statement MultipleStatements    {;}
-    | Statement                                     {;}
+MultipleStatements: Statement MultipleStatements    {$$=add_bro($1,$2);}
+    | Statement                                     {$$=$1;}
     ;
 
-MethodInvocation: ID LPAR RPAR                      {printf("Id %s\n", $1);}
-    | ID LPAR Expr RPAR                             {printf("Id %s\n", $1);}
-    | ID LPAR Expr CommaExpr RPAR                   {printf("Id %s\n", $1);}
+MethodInvocation: ID LPAR RPAR                      {$$=create_node("Id", $1);}
+    | ID LPAR Expr RPAR                             {$$=add_bro(create_node("Id", $1), $3);}
+    | ID LPAR Expr CommaExpr RPAR                   {$$=add_bro(create_node("Id", $1), add_bro($3, $4));}
+    | ID LPAR error RPAR                            {$$=NULL;}
     ;
 
-CommaExpr: COMMA Expr                               {;}
-    | COMMA Expr CommaExpr                          {;}
+CommaExpr: COMMA Expr                               {$$=$2;}
+    | COMMA Expr CommaExpr                          {$$=add_bro($2, $3);}
     ;
 
-Assignment: ID ASSIGN Expr                          {printf("Assign\n"); printf("Id %s\n", $1);}
+Assignment: ID ASSIGN Expr                          {$$=add_bro(create_node("Id", $1),$3);}
 
-ParseArgs: PARSEINT LPAR ID LSQ Expr RSQ RPAR       {printf("ParseInt\n"); printf("Id %s\n", $3);}
-
-Expr: Expr PLUS Expr                                {printf("Sum\n");}
-    | Expr MINUS Expr                               {printf("Sub\n");}
-    | Expr STAR Expr                                {printf("Star\n");}
-    | Expr DIV Expr                                 {printf("Div\n");}
-    | Expr MOD Expr                                 {printf("Mod\n");}
-    | Expr AND Expr                                 {printf("And\n");}
-    | Expr OR Expr                                  {printf("Or\n");}
-    | Expr XOR Expr                                 {printf("Xor\n");}
-    | Expr LSHIFT Expr                              {printf("Lshift\n");}
-    | Expr RSHIFT Expr                              {printf("Rshift\n");}
-    | Expr EQ Expr                                  {printf("Eq\n");}
-    | Expr GE Expr                                  {printf("Ge\n");}
-    | Expr GT Expr                                  {printf("Gt\n");}
-    | Expr LE Expr                                  {printf("Le\n");}
-    | Expr LT Expr                                  {printf("Lt\n");}
-    | Expr NE Expr                                  {printf("Ne\n");}
-    | MINUS Expr                                    {printf("Minus\n");}
-    | NOT Expr                                      {printf("Not\n");}
-    | PLUS Expr                                     {printf("Plus\n");}
-    | LPAR Expr RPAR                                {;}
-    | MethodInvocation                              {;}
-    | Assignment                                    {;}
-    | ParseArgs                                     {;}
-    | ID DOTLENGTH                                  {printf("Id %s\n", $1); printf("DotLength\n");}
-    | ID                                            {printf("Id %s\n", $1);}
-    | INTLIT                                        {printf("IntLit %s\n", $1);} 
-    | REALLIT                                       {printf("RealLit %s\n", $1);}
-    | BOOLLIT                                       {printf("BoolLit %s\n", $1);}
+ParseArgs: PARSEINT LPAR ID LSQ Expr RSQ RPAR       {$$=add_bro(create_node("Id", $3),$5);}
+    | PARSEINT LPAR error RPAR                      {$$=NULL;}
     ;
+
+Expr: Expr PLUS Expr                                {$$=add_son(create_node("Add", NULL), add_bro($1, $3));} 
+    | Expr MINUS Expr                               {$$=add_son(create_node("Minus", NULL), add_bro($1, $3));} 
+    | Expr STAR Expr                                {$$=add_son(create_node("Mul", NULL), add_bro($1, $3));} 
+    | Expr DIV Expr                                 {$$=add_son(create_node("Div", NULL), add_bro($1, $3));} 
+    | Expr MOD Expr                                 {$$=add_son(create_node("Mod", NULL), add_bro($1, $3));} 
+    | Expr AND Expr                                 {$$=add_son(create_node("And", NULL), add_bro($1, $3));} 
+    | Expr OR Expr                                  {$$=add_son(create_node("Or", NULL), add_bro($1, $3));} 
+    | Expr XOR Expr                                 {$$=add_son(create_node("Xor", NULL), add_bro($1, $3));} 
+    | Expr LSHIFT Expr                              {$$=add_son(create_node("Lshift", NULL), add_bro($1, $3));} 
+    | Expr RSHIFT Expr                              {$$=add_son(create_node("Rshift", NULL), add_bro($1, $3));} 
+    | Expr EQ Expr                                  {$$=add_son(create_node("Eq", NULL), add_bro($1, $3));} 
+    | Expr GE Expr                                  {$$=add_son(create_node("Ge", NULL), add_bro($1, $3));} 
+    | Expr GT Expr                                  {$$=add_son(create_node("Gt", NULL), add_bro($1, $3));} 
+    | Expr LE Expr                                  {$$=add_son(create_node("Le", NULL), add_bro($1, $3));} 
+    | Expr LT Expr                                  {$$=add_son(create_node("Lt", NULL), add_bro($1, $3));} 
+    | Expr NE Expr                                  {$$=add_son(create_node("Ne", NULL), add_bro($1, $3));} 
+    | MINUS Expr                                    {$$=add_son(create_node("Minus", NULL), $2);} 
+    | NOT Expr                                      {$$=add_son(create_node("Not", NULL), $2);} 
+    | PLUS Expr                                     {$$=add_son(create_node("Add", NULL), $2);} 
+    | LPAR Expr RPAR                                {$$=$2;}
+    | MethodInvocation                              {$$=add_son(create_node("Call", NULL), $1);} 
+    | Assignment                                    {$$=add_son(create_node("Assign", NULL), $1);} 
+    | ParseArgs                                     {$$=add_son(create_node("ParseArgs", NULL), $1);} 
+    | ID DOTLENGTH                                  {$$=add_son(create_node("Length", NULL), create_node("Id", $1));}
+    | ID                                            {$$=create_node("Id", $1);} 
+    | INTLIT                                        {$$=create_node("DecLit", $1);}
+    | REALLIT                                       {$$=create_node("RealLit", $1);}
+    | BOOLLIT                                       {$$=create_node("BoolLit", $1);}
+    | LPAR error RPAR                               {$$=NULL;}
+    ;
+
 %%
 /*
 int main(int argc, char *argv[]){
@@ -180,9 +192,11 @@ int main(int argc, char *argv[]){
     }
     return 0;
 }*/
-void yyerror (const char *s) { 
-  printf ("%s: %s\n", s, yytext);
+
+void yyerror (char * s) {
+printf ("Line %d, col %d: %s: %s\n", line_yacc, col_yacc, s, yytext);
 }
+
 /*int main(int argc, char* argv[]) {
     if(argc > 1){
         if(strcmp(argv[1], "-t") == 0) flag = 1;
