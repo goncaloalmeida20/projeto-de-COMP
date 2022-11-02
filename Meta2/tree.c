@@ -47,10 +47,7 @@ void print_tree(Node *n, int level){
     
     for(i = 0; i < level * 2; i++) putchar('.');
     if (n->value == NULL) printf("%s\n", n->type);
-    else{
-        if(strcmp(n->type, "StrLit") == 0) printf("%s(\"%s\")\n", n->type, n->value);
-        else printf("%s(%s)\n", n->type, n->value);
-    } 
+    else printf("%s(%s)\n", n->type, n->value);
 
     print_tree(n->son, level+1);
     print_tree(n->bro, level);
