@@ -20,26 +20,31 @@
 num [0-9]
 numnotzero [1-9]
 let [$_a-zA-Z]
+new_line "\r\n"|"\n"|"\r"
 escape_chars [\\\"ntrf]
 invalid_escape [^\n\r\\\"ntrf]
+valid_str (("\\"{escape_chars})|[^\\\"\r\n])*
 ignore [ \t\r\f]
-%X MLCOMMENT STRING
+%X MLCOMMENT STRING_ERROR
 %%
-"\r\n"|"\n"|"\r" {line++; col = 1;}
+{new_line} {line++; col = 1;}
 "//"[^\r\n]* {;}
 
 "/*" {line_temp = line; col_temp = col; col_temp += yyleng; BEGIN (MLCOMMENT);}
 <MLCOMMENT>"*/" {col_temp += yyleng; line = line_temp; col = col_temp; BEGIN (0);}
-<MLCOMMENT>"\r\n"|"\n"|"\r" {line_temp++; col_temp = 1;}
+<MLCOMMENT>{new_line} {line_temp++; col_temp = 1;}
 <MLCOMMENT><<EOF>> {printf("Line %d, col %d: unterminated comment\n", line, col); BEGIN (0);}
 <MLCOMMENT>. {col_temp+=yyleng;}
 
-"\"" {col_temp = col; col_temp += yyleng; current_string_pos = 0; print_string = 1; BEGIN (STRING);}
-<STRING>"\"" {col_temp += yyleng; if(print_string && flag) printf("STRLIT(\"%s\")\n", string); string[0] = 0; col = col_temp; BEGIN (0);}
-<STRING><<EOF>> {print_string = 0; printf("Line %d, col %d: unterminated string literal\n", line, col); BEGIN (0);}
-<STRING>"\r\n"|"\n"|"\r" {print_string = 0; printf("Line %d, col %d: unterminated string literal\n", line, col); string[0] = 0; line++; col = 1; BEGIN (0);}
-<STRING>("\\"{escape_chars})|[^\\] {col_temp += yyleng; strcpy(&string[current_string_pos], yytext); current_string_pos += yyleng;}
-<STRING>("\\"{invalid_escape}?) {print_string = 0; printf("Line %d, col %d: invalid escape sequence (%s)\n", line, col_temp, yytext); col_temp += yyleng;}
+"\""{valid_str}"\"" {col += yyleng; if(flag) printf("STRLIT(%s)\n", yytext);}
+"\""{valid_str}{new_line}? {printf("Line %d, col %d: unterminated string literal\n", line, col); line++; col = 1;}
+"\""{valid_str}"\\"{invalid_escape} {col_temp = col; col_temp += yyleng; printf("Line %d, col %d: invalid escape sequence (%s)\n", line, col_temp - 2, &yytext[yyleng-2]); BEGIN (STRING_ERROR);}
+"\""{valid_str}"\\" {col_temp = col; col_temp += yyleng; printf("Line %d, col %d: invalid escape sequence (%s)\n", line, col_temp - 1, &yytext[yyleng-1]); BEGIN (STRING_ERROR);}
+<STRING_ERROR>"\"" {col_temp += yyleng; col = col_temp; BEGIN (0);}
+<STRING_ERROR><<EOF>> {printf("Line %d, col %d: unterminated string literal\n", line, col); BEGIN (0);}
+<STRING_ERROR>{new_line} {printf("Line %d, col %d: unterminated string literal\n", line, col); string[0] = 0; line++; col = 1; BEGIN (0);}
+<STRING_ERROR>("\\"{escape_chars})|[^\\] {col_temp += yyleng;}
+<STRING_ERROR>("\\"{invalid_escape}?) {printf("Line %d, col %d: invalid escape sequence (%s)\n", line, col_temp, yytext); col_temp += yyleng;}
 
 "&&" {if(flag) printf("AND\n"); col += yyleng;}
 "=" {if(flag) printf("ASSIGN\n"); col += yyleng;}
