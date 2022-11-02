@@ -12,6 +12,8 @@
     extern int yylex(void);
     extern void yyerror(char*);
     extern char* yytext;
+
+    int yacc_error = 0;
     
     char current_type[SIZE];
 
@@ -25,7 +27,7 @@
 %right LPAR
 %left RPAR
 %right IF ELSE
-%left ASSIGN
+%right ASSIGN
 %left OR
 %left AND
 %left XOR
@@ -35,9 +37,8 @@
 %left PLUS MINUS
 %left STAR DIV
 %left MOD
-%right UNARY
-%right NOT
-%type <node> MethodFieldDecl MethodDecl FieldDecl FieldCommaId Type MethodHeader MethodBody FormalParams StatementVarDecl CommaTypeIds VarDecl VarCommaId Statement MultipleStatements   MethodInvocation CommaExpr Assignment ParseArgs Expr
+%right NOT UNARY
+%type <node> MethodFieldDecl MethodDecl FieldDecl FieldCommaId Type MethodHeader MethodBody FormalParams StatementVarDecl CommaTypeIds VarDecl VarCommaId Statement MultipleStatements MethodInvocation CommaExpr Assignment ParseArgs Expr ExprNoAssign
 %%
 
 Program: CLASS ID LBRACE RBRACE                     {root = create_node("Program", NULL); add_son(root, create_node("Id",$2));}                   
@@ -56,7 +57,7 @@ MethodDecl: PUBLIC STATIC MethodHeader MethodBody   {$$=add_son(create_node("Met
 
 FieldDecl: PUBLIC STATIC Type ID SEMICOLON          {$$=add_son(create_node("FieldDecl",NULL), add_bro($3, create_node("Id", $4)));} 
     | PUBLIC STATIC Type ID FieldCommaId SEMICOLON  {$$=add_bro(add_son(create_node("FieldDecl",NULL), add_bro($3, create_node("Id", $4))), $5);}   
-    | error SEMICOLON                               {$$=NULL;}
+    | error SEMICOLON                               {yacc_error = 1; $$=NULL;}
     ;
 
 FieldCommaId: COMMA ID                              {$$=add_son(create_node("FieldDecl",NULL), add_bro(create_node(current_type, NULL), create_node("Id", $2)));}   
@@ -102,9 +103,9 @@ VarCommaId: COMMA ID                                {$$=add_son(create_node("Var
     ;
 
 
-Statement: LBRACE RBRACE                            {$$=create_node("Block", NULL);}
+Statement: LBRACE RBRACE                            {$$=NULL;}
     | LBRACE Statement RBRACE                       {$$=$2;}
-    | LBRACE Statement MultipleStatements RBRACE    {$$=add_son(create_node("Block", NULL), add_bro($2, $3));}
+    | LBRACE Statement MultipleStatements RBRACE    {$$=create_blocks($2,$3);}
     | IF LPAR Expr RPAR Statement                   {$$=add_if($3, $5, NULL);}
     | IF LPAR Expr RPAR Statement ELSE Statement    {$$=add_if($3, $5, $7);}
     | WHILE LPAR Expr RPAR Statement                {$$=add_while($3, $5);}
@@ -116,7 +117,7 @@ Statement: LBRACE RBRACE                            {$$=create_node("Block", NUL
     | ParseArgs SEMICOLON                           {$$=add_son(create_node("ParseArgs", NULL), $1);}
     | PRINT LPAR STRLIT RPAR SEMICOLON              {$$=add_son(create_node("Print", NULL), create_node("StrLit", $3));}
     | PRINT LPAR Expr RPAR SEMICOLON                {$$=add_son(create_node("Print",NULL), $3);}
-    | error SEMICOLON                               {$$=NULL;}
+    | error SEMICOLON                               {yacc_error = 1; $$=NULL;}
     ;
 
 MultipleStatements: Statement MultipleStatements    {$$=add_bro($1,$2);}
@@ -126,7 +127,7 @@ MultipleStatements: Statement MultipleStatements    {$$=add_bro($1,$2);}
 MethodInvocation: ID LPAR RPAR                      {$$=create_node("Id", $1);}
     | ID LPAR Expr RPAR                             {$$=add_bro(create_node("Id", $1), $3);}
     | ID LPAR Expr CommaExpr RPAR                   {$$=add_bro(create_node("Id", $1), add_bro($3, $4));}
-    | ID LPAR error RPAR                            {$$=NULL;}
+    | ID LPAR error RPAR                            {yacc_error = 1; $$=NULL;}
     ;
 
 CommaExpr: COMMA Expr                               {$$=$2;}
@@ -136,28 +137,28 @@ CommaExpr: COMMA Expr                               {$$=$2;}
 Assignment: ID ASSIGN Expr                          {$$=add_bro(create_node("Id", $1),$3);}
 
 ParseArgs: PARSEINT LPAR ID LSQ Expr RSQ RPAR       {$$=add_bro(create_node("Id", $3),$5);}
-    | PARSEINT LPAR error RPAR                      {$$=NULL;}
+    | PARSEINT LPAR error RPAR                      {yacc_error = 1; $$=NULL;}
     ;
 
-Expr: Expr PLUS Expr                                {$$=add_son(create_node("Add", NULL), add_bro($1, $3));} 
-    | Expr MINUS Expr                               {$$=add_son(create_node("Sub", NULL), add_bro($1, $3));} 
-    | Expr STAR Expr                                {$$=add_son(create_node("Mul", NULL), add_bro($1, $3));} 
-    | Expr DIV Expr                                 {$$=add_son(create_node("Div", NULL), add_bro($1, $3));} 
-    | Expr MOD Expr                                 {$$=add_son(create_node("Mod", NULL), add_bro($1, $3));} 
-    | Expr AND Expr                                 {$$=add_son(create_node("And", NULL), add_bro($1, $3));} 
-    | Expr OR Expr                                  {$$=add_son(create_node("Or", NULL), add_bro($1, $3));} 
-    | Expr XOR Expr                                 {$$=add_son(create_node("Xor", NULL), add_bro($1, $3));} 
-    | Expr LSHIFT Expr                              {$$=add_son(create_node("Lshift", NULL), add_bro($1, $3));} 
-    | Expr RSHIFT Expr                              {$$=add_son(create_node("Rshift", NULL), add_bro($1, $3));} 
-    | Expr EQ Expr                                  {$$=add_son(create_node("Eq", NULL), add_bro($1, $3));} 
-    | Expr GE Expr                                  {$$=add_son(create_node("Ge", NULL), add_bro($1, $3));} 
-    | Expr GT Expr                                  {$$=add_son(create_node("Gt", NULL), add_bro($1, $3));} 
-    | Expr LE Expr                                  {$$=add_son(create_node("Le", NULL), add_bro($1, $3));} 
-    | Expr LT Expr                                  {$$=add_son(create_node("Lt", NULL), add_bro($1, $3));} 
-    | Expr NE Expr                                  {$$=add_son(create_node("Ne", NULL), add_bro($1, $3));} 
-    | MINUS Expr                       %prec UNARY  {$$=add_son(create_node("Minus", NULL), $2);} 
-    | NOT Expr                                      {$$=add_son(create_node("Not", NULL), $2);} 
-    | PLUS Expr                        %prec UNARY  {$$=add_son(create_node("Add", NULL), $2);} 
+Expr: Expr PLUS ExprNoAssign                                {$$=add_son(create_node("Add", NULL), add_bro($1, $3));} 
+    | Expr MINUS ExprNoAssign                               {$$=add_son(create_node("Sub", NULL), add_bro($1, $3));} 
+    | Expr STAR ExprNoAssign                                {$$=add_son(create_node("Mul", NULL), add_bro($1, $3));} 
+    | Expr DIV ExprNoAssign                                 {$$=add_son(create_node("Div", NULL), add_bro($1, $3));} 
+    | Expr MOD ExprNoAssign                                 {$$=add_son(create_node("Mod", NULL), add_bro($1, $3));} 
+    | Expr AND ExprNoAssign                                 {$$=add_son(create_node("And", NULL), add_bro($1, $3));} 
+    | Expr OR ExprNoAssign                                  {$$=add_son(create_node("Or", NULL), add_bro($1, $3));} 
+    | Expr XOR ExprNoAssign                                 {$$=add_son(create_node("Xor", NULL), add_bro($1, $3));} 
+    | Expr LSHIFT ExprNoAssign                              {$$=add_son(create_node("Lshift", NULL), add_bro($1, $3));} 
+    | Expr RSHIFT ExprNoAssign                              {$$=add_son(create_node("Rshift", NULL), add_bro($1, $3));} 
+    | Expr EQ ExprNoAssign                                  {$$=add_son(create_node("Eq", NULL), add_bro($1, $3));} 
+    | Expr GE ExprNoAssign                                  {$$=add_son(create_node("Ge", NULL), add_bro($1, $3));} 
+    | Expr GT ExprNoAssign                                  {$$=add_son(create_node("Gt", NULL), add_bro($1, $3));} 
+    | Expr LE ExprNoAssign                                  {$$=add_son(create_node("Le", NULL), add_bro($1, $3));} 
+    | Expr LT ExprNoAssign                                  {$$=add_son(create_node("Lt", NULL), add_bro($1, $3));} 
+    | Expr NE ExprNoAssign                                  {$$=add_son(create_node("Ne", NULL), add_bro($1, $3));} 
+    | MINUS ExprNoAssign                       %prec UNARY  {$$=add_son(create_node("Minus", NULL), $2);} 
+    | NOT ExprNoAssign                                      {$$=add_son(create_node("Not", NULL), $2);} 
+    | PLUS ExprNoAssign                        %prec UNARY  {$$=add_son(create_node("Add", NULL), $2);} 
     | LPAR Expr RPAR                                {$$=$2;}
     | MethodInvocation                              {$$=add_son(create_node("Call", NULL), $1);} 
     | Assignment                                    {$$=add_son(create_node("Assign", NULL), $1);} 
@@ -167,7 +168,36 @@ Expr: Expr PLUS Expr                                {$$=add_son(create_node("Add
     | INTLIT                                        {$$=create_node("DecLit", $1);}
     | REALLIT                                       {$$=create_node("RealLit", $1);}
     | BOOLLIT                                       {$$=create_node("BoolLit", $1);}
-    | LPAR error RPAR                               {$$=NULL;}
+    | LPAR error RPAR                               {yacc_error = 1; $$=NULL;}
+    ;
+
+ExprNoAssign: ExprNoAssign PLUS ExprNoAssign                                {$$=add_son(create_node("Add", NULL), add_bro($1, $3));} 
+    | ExprNoAssign MINUS ExprNoAssign                               {$$=add_son(create_node("Sub", NULL), add_bro($1, $3));} 
+    | ExprNoAssign STAR ExprNoAssign                                {$$=add_son(create_node("Mul", NULL), add_bro($1, $3));} 
+    | ExprNoAssign DIV ExprNoAssign                                 {$$=add_son(create_node("Div", NULL), add_bro($1, $3));} 
+    | ExprNoAssign MOD ExprNoAssign                                 {$$=add_son(create_node("Mod", NULL), add_bro($1, $3));} 
+    | ExprNoAssign AND ExprNoAssign                                 {$$=add_son(create_node("And", NULL), add_bro($1, $3));} 
+    | ExprNoAssign XOR ExprNoAssign                                 {$$=add_son(create_node("Xor", NULL), add_bro($1, $3));} 
+    | ExprNoAssign LSHIFT ExprNoAssign                              {$$=add_son(create_node("Lshift", NULL), add_bro($1, $3));} 
+    | ExprNoAssign RSHIFT ExprNoAssign                              {$$=add_son(create_node("Rshift", NULL), add_bro($1, $3));} 
+    | ExprNoAssign EQ ExprNoAssign                                  {$$=add_son(create_node("Eq", NULL), add_bro($1, $3));} 
+    | ExprNoAssign GE ExprNoAssign                                  {$$=add_son(create_node("Ge", NULL), add_bro($1, $3));} 
+    | ExprNoAssign GT ExprNoAssign                                  {$$=add_son(create_node("Gt", NULL), add_bro($1, $3));} 
+    | ExprNoAssign LE ExprNoAssign                                  {$$=add_son(create_node("Le", NULL), add_bro($1, $3));} 
+    | ExprNoAssign LT ExprNoAssign                                  {$$=add_son(create_node("Lt", NULL), add_bro($1, $3));} 
+    | ExprNoAssign NE ExprNoAssign                                  {$$=add_son(create_node("Ne", NULL), add_bro($1, $3));} 
+    | MINUS ExprNoAssign                       %prec UNARY  {$$=add_son(create_node("Minus", NULL), $2);} 
+    | NOT ExprNoAssign                                      {$$=add_son(create_node("Not", NULL), $2);} 
+    | PLUS ExprNoAssign                        %prec UNARY  {$$=add_son(create_node("Add", NULL), $2);} 
+    | LPAR ExprNoAssign RPAR                                {$$=$2;}
+    | MethodInvocation                              {$$=add_son(create_node("Call", NULL), $1);} 
+    | ParseArgs                                     {$$=add_son(create_node("ParseArgs", NULL), $1);} 
+    | ID DOTLENGTH                                  {$$=add_son(create_node("Length", NULL), create_node("Id", $1));}
+    | ID                                            {$$=create_node("Id", $1);} 
+    | INTLIT                                        {$$=create_node("DecLit", $1);}
+    | REALLIT                                       {$$=create_node("RealLit", $1);}
+    | BOOLLIT                                       {$$=create_node("BoolLit", $1);}
+    | LPAR error RPAR                               {yacc_error = 1; $$=NULL;}
     ;
 
 %%
@@ -195,7 +225,7 @@ int main(int argc, char *argv[]){
 }*/
 
 void yyerror (char * s) {
-printf ("Line %d, col %d: %s: %s\n", line_yacc, col_yacc, s, yytext);
+    printf ("Line %d, col %d: %s: %s\n", line_yacc, col_yacc, s, yytext);
 }
 
 /*int main(int argc, char* argv[]) {
