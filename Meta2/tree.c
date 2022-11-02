@@ -1,3 +1,8 @@
+/*
+    Autores:
+        Gonçalo Fernandes Diogo de Almeida, nº2020218868
+        João Bernardo de Jesus Santos, nº2020218995
+*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -67,4 +72,11 @@ Node* add_if(Node *expr, Node *statement_if, Node *statement_else){
 Node* add_while(Node *expr, Node *statement_while){
     if(statement_while == NULL) statement_while = create_node("Block", NULL);
     return add_son(create_node("While", NULL), add_bro(expr, statement_while));
+}
+
+Node* create_blocks(Node *statement1, Node* statement2){
+    if(statement1 == NULL && statement2 == NULL) return NULL;
+    if(statement1 == NULL) return statement2;
+    if(statement2 == NULL) return statement1;
+    return add_son(create_node("Block", NULL), add_bro(statement1, statement2));
 }
