@@ -10,43 +10,45 @@
     #include "tree.h"
     #include "y.tab.h"
 
-    #define MAX_STRING_SIZE 32768
-
     extern int flag_yacc;
     extern int line_yacc, col_yacc;
+    extern int yacc_error;
     extern void yyerror(char*);
 
     int flag = 0;
-    int line, line_temp = 1;
-    int col, col_temp = 1;
-    int current_string_pos = 0, print_string = 1;
-    char string[MAX_STRING_SIZE];
+    int line = 1, line_temp = 1;
+    int col = 1, col_temp = 1;
 %}
 
 num [0-9]
 numnotzero [1-9]
 let [$_a-zA-Z]
+new_line "\r\n"|"\n"|"\r"
 escape_chars [\\\"ntrf]
 invalid_escape [^\n\r\\\"ntrf]
+valid_str (("\\"{escape_chars})|[^\\\"\r\n])*
 ignore [ \t\r\f]
 
-%X MLCOMMENT STRING_STATE
+%X MLCOMMENT STRING_ERROR
 %%
-"\r\n"|"\n"|"\r" {line++; col = 1;}
+{new_line} {line++; col = 1; col_yacc = col; line_yacc = line;}
 "//"[^\r\n]* {;}
 
 "/*" {line_temp = line; col_temp = col; col_temp += yyleng; BEGIN (MLCOMMENT);}
 <MLCOMMENT>"*/" {col_temp += yyleng; line = line_temp; col = col_temp; BEGIN (0);}
-<MLCOMMENT>"\r\n"|"\n"|"\r" {line_temp++; col_temp = 1;}
-<MLCOMMENT><<EOF>> {printf("Line %d, col %d: unterminated comment\n", line, col); BEGIN (0);}
+<MLCOMMENT>{new_line} {line_temp++; col_temp = 1;}
+<MLCOMMENT><<EOF>> {col_yacc = col_temp; line_yacc = line_temp; printf("Line %d, col %d: unterminated comment\n", line, col); BEGIN (0);}
 <MLCOMMENT>. {col_temp+=yyleng;}
 
-"\"" {col_yacc = col; line_yacc = line; col_temp = col; col_temp += yyleng; current_string_pos = 0; print_string = 1; BEGIN (STRING_STATE);}
-<STRING_STATE>"\"" {col_temp += yyleng; if(print_string && flag) printf("STRLIT(\"%s\")\n", string); yylval.str = strdup(string); string[0] = 0; col = col_temp; BEGIN (0); if(flag_yacc >= 0) return STRLIT;}
-<STRING_STATE><<EOF>> {print_string = 0; printf("Line %d, col %d: unterminated string literal\n", line, col); BEGIN (0);}
-<STRING_STATE>"\r\n"|"\n"|"\r" {print_string = 0; printf("Line %d, col %d: unterminated string literal\n", line, col); string[0] = 0; line++; col = 1; BEGIN (0);}
-<STRING_STATE>("\\"{escape_chars})|[^\\] {col_temp += yyleng; strcpy(&string[current_string_pos], yytext); current_string_pos += yyleng;}
-<STRING_STATE>("\\"{invalid_escape}?) {print_string = 0; printf("Line %d, col %d: invalid escape sequence (%s)\n", line, col_temp, yytext); col_temp += yyleng;}
+"\""{valid_str}"\"" {col_yacc = col; line_yacc = line; col += yyleng; if(flag) printf("STRLIT(%s)\n", yytext); if(flag_yacc >= 0){yylval.str = strdup(yytext); return STRLIT;}}
+"\""{valid_str}{new_line}? {printf("Line %d, col %d: unterminated string literal\n", line, col); line++; col = 1;}
+"\""{valid_str}"\\"{invalid_escape} {col_temp = col; col_temp += yyleng; printf("Line %d, col %d: invalid escape sequence (%s)\n", line, col_temp - 2, &yytext[yyleng-2]); BEGIN (STRING_ERROR);}
+"\""{valid_str}"\\" {col_temp = col; col_temp += yyleng; printf("Line %d, col %d: invalid escape sequence (%s)\n", line, col_temp - 1, &yytext[yyleng-1]); BEGIN (STRING_ERROR);}
+<STRING_ERROR>"\"" {col_temp += yyleng; col = col_temp; BEGIN (0);}
+<STRING_ERROR><<EOF>> {printf("Line %d, col %d: unterminated string literal\n", line, col); BEGIN (0);}
+<STRING_ERROR>{new_line} {printf("Line %d, col %d: unterminated string literal\n", line, col); line++; col = 1;; BEGIN (0);}
+<STRING_ERROR>("\\"{escape_chars})|[^\\] {col_temp += yyleng;}
+<STRING_ERROR>("\\"{invalid_escape}?) {printf("Line %d, col %d: invalid escape sequence (%s)\n", line, col_temp, yytext); col_temp += yyleng;}
 
 "&&" {col_yacc = col; line_yacc = line; col += yyleng; if(flag) printf("AND\n"); if(flag_yacc >= 0) return AND;}
 "="  {col_yacc = col; line_yacc = line; col += yyleng; if(flag) printf("ASSIGN\n"); if(flag_yacc >= 0) return ASSIGN;}
@@ -97,7 +99,7 @@ ignore [ \t\r\f]
 (("0"?"."{num}("_"*{num})*)|({num}("_"*{num})*("."({num}("_"*{num})*)?)))(("e"|"E")("+"|"-"|""){num}("_"*{num})*)? {col_yacc = col; line_yacc = line;col += yyleng; if(flag) printf("REALLIT(%s)\n", yytext); yylval.str = strdup(yytext); if(flag_yacc >= 0) return REALLIT;}
 "0" {col_yacc = col; line_yacc = line;col += yyleng; if(flag) printf("INTLIT(%s)\n", yytext); yylval.str = strdup(yytext); if(flag_yacc >= 0) return INTLIT;}
 {let}({let}|{num})* {col_yacc = col; line_yacc = line;col += yyleng; if(flag) printf("ID(%s)\n", yytext); yylval.str = strdup(yytext); if(flag_yacc >= 0) return ID;}
-{ignore} {col += yyleng;}
+{ignore} {col += yyleng; col_yacc = col;}
 . {printf("Line %d, col %d: illegal character (%s)\n", line, col, yytext); col += yyleng;}
 %%
 
@@ -120,7 +122,7 @@ int main(int argc, char *argv[]){
         else if(strcmp(argv[1], "-t") == 0) {
             flag_yacc = 1;
             yyparse();
-            print_tree(root, 0);
+            if(!yacc_error) print_tree(root, 0);
         }
     }
     return 0;
