@@ -15,7 +15,7 @@
 
     int yacc_error = 0;
     
-    char current_type[SIZE];
+    char current_type[TYPE_SIZE];
 
     int line_yacc = 1, col_yacc = 1;
     int flag_yacc = 0;
@@ -24,10 +24,11 @@
 %union{char* str; Node* node;}
 %token BOOL INT DOUBLE AND ASSIGN STAR COMMA DIV EQ GE GT LBRACE LE LPAR LSQ LT MINUS MOD NE NOT OR PLUS RBRACE RPAR RSQ SEMICOLON ARROW LSHIFT RSHIFT XOR CLASS DOTLENGTH ELSE IF PRINT PARSEINT PUBLIC RETURN STATIC STRING VOID WHILE
 %token <str> RESERVED STRLIT BOOLLIT INTLIT REALLIT ID
+
+%right ASSIGN
 %right LPAR
 %left RPAR
 %right IF ELSE
-%right ASSIGN
 %left OR
 %left AND
 %left XOR
@@ -35,14 +36,15 @@
 %left GE GT LE LT
 %left LSHIFT RSHIFT
 %left PLUS MINUS
-%left STAR DIV
-%left MOD
+%left STAR DIV MOD
 %right NOT UNARY
 %type <node> MethodFieldDecl MethodDecl FieldDecl FieldCommaId Type MethodHeader MethodBody FormalParams StatementVarDecl CommaTypeIds VarDecl VarCommaId Statement MultipleStatements MethodInvocation CommaExpr Assignment ParseArgs Expr ExprNoAssign
 %%
 
 Program: CLASS ID LBRACE RBRACE                     {root = create_node("Program", NULL); add_son(root, create_node("Id",$2));}                   
     | CLASS ID LBRACE MethodFieldDecl RBRACE        {root = create_node("Program", NULL); add_son(root, add_bro(create_node("Id",$2), $4));}   
+    | CLASS ID LBRACE RBRACE error                  {yacc_error = 1;}                   
+    | CLASS ID LBRACE MethodFieldDecl RBRACE error  {yacc_error = 1;}   
     ;
 
 MethodFieldDecl: MethodDecl                         {$$=$1;}
@@ -158,7 +160,7 @@ Expr: Expr PLUS ExprNoAssign                                {$$=add_son(create_n
     | Expr NE ExprNoAssign                                  {$$=add_son(create_node("Ne", NULL), add_bro($1, $3));} 
     | MINUS ExprNoAssign                       %prec UNARY  {$$=add_son(create_node("Minus", NULL), $2);} 
     | NOT ExprNoAssign                                      {$$=add_son(create_node("Not", NULL), $2);} 
-    | PLUS ExprNoAssign                        %prec UNARY  {$$=add_son(create_node("Add", NULL), $2);} 
+    | PLUS ExprNoAssign                        %prec UNARY  {$$=add_son(create_node("Plus", NULL), $2);} 
     | LPAR Expr RPAR                                {$$=$2;}
     | MethodInvocation                              {$$=add_son(create_node("Call", NULL), $1);} 
     | Assignment                                    {$$=add_son(create_node("Assign", NULL), $1);} 
@@ -188,8 +190,8 @@ ExprNoAssign: ExprNoAssign PLUS ExprNoAssign                                {$$=
     | ExprNoAssign NE ExprNoAssign                                  {$$=add_son(create_node("Ne", NULL), add_bro($1, $3));} 
     | MINUS ExprNoAssign                       %prec UNARY  {$$=add_son(create_node("Minus", NULL), $2);} 
     | NOT ExprNoAssign                                      {$$=add_son(create_node("Not", NULL), $2);} 
-    | PLUS ExprNoAssign                        %prec UNARY  {$$=add_son(create_node("Add", NULL), $2);} 
-    | LPAR ExprNoAssign RPAR                                {$$=$2;}
+    | PLUS ExprNoAssign                        %prec UNARY  {$$=add_son(create_node("Plus", NULL), $2);} 
+    | LPAR Expr RPAR                                {$$=$2;}
     | MethodInvocation                              {$$=add_son(create_node("Call", NULL), $1);} 
     | ParseArgs                                     {$$=add_son(create_node("ParseArgs", NULL), $1);} 
     | ID DOTLENGTH                                  {$$=add_son(create_node("Length", NULL), create_node("Id", $1));}
