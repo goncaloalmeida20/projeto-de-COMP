@@ -46,7 +46,7 @@ ignore [ \t\r\f]
 "\""{valid_str}"\\" {col_temp = col; col_temp += yyleng; printf("Line %d, col %d: invalid escape sequence (%s)\n", line, col_temp - 1, &yytext[yyleng-1]); BEGIN (STRING_ERROR);}
 <STRING_ERROR>"\"" {col_temp += yyleng; col = col_temp; BEGIN (0);}
 <STRING_ERROR><<EOF>> {printf("Line %d, col %d: unterminated string literal\n", line, col); BEGIN (0);}
-<STRING_ERROR>{new_line} {printf("Line %d, col %d: unterminated string literal\n", line, col); line++; col = 1;; BEGIN (0);}
+<STRING_ERROR>{new_line} {printf("Line %d, col %d: unterminated string literal\n", line, col); line++; col = 1; BEGIN (0);}
 <STRING_ERROR>("\\"{escape_chars})|[^\\] {col_temp += yyleng;}
 <STRING_ERROR>("\\"{invalid_escape}?) {printf("Line %d, col %d: invalid escape sequence (%s)\n", line, col_temp, yytext); col_temp += yyleng;}
 
@@ -122,7 +122,10 @@ int main(int argc, char *argv[]){
         else if(strcmp(argv[1], "-t") == 0) {
             flag_yacc = 1;
             yyparse();
-            if(!yacc_error) print_tree(root, 0);
+            if(!yacc_error){
+                print_tree(root, 0);
+                free_tree(root);
+            } 
         }
     }
     return 0;
