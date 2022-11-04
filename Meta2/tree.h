@@ -7,7 +7,7 @@
 #ifndef TREE_H
 #define TREE_H
 
-#define SIZE 1024
+#define TYPE_SIZE 100
 
 typedef struct node{
 	char *type;
