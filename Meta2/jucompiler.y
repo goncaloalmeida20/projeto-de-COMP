@@ -203,38 +203,7 @@ ExprNoAssign: ExprNoAssign PLUS ExprNoAssign                                {$$=
     ;
 
 %%
-/*
-int main(int argc, char *argv[]){
-    if(argc > 1){
-        if(strcmp(argv[1], "-l") == 0) {
-            flag = 1;
-            yylex();
-        }
-        else if(strcmp(argv[1], "-e1") == 0) {
-            flag = 0;
-            yylex();
-        }
-        else if(strcmp(argv[1], "-e2") == 0) {
-            flag_yacc = 0;
-            yyparse();
-        }
-        else if(strcmp(argv[1], "-t") == 0) {
-            flag_yacc = 1;
-            yyparse();
-        }
-    }
-    return 0;
-}*/
 
 void yyerror (char * s) {
     printf ("Line %d, col %d: %s: %s\n", line_yacc, col_yacc, s, yytext);
 }
-
-/*int main(int argc, char* argv[]) {
-    if(argc > 1){
-        if(strcmp(argv[1], "-t") == 0) flag = 1;
-        else if(strcmp(argv[1], "-e2") == 0) flag = 0;
-    }
-    yyparse();
-    return 0;
-}*/
