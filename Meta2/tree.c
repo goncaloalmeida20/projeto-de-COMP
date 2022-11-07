@@ -8,7 +8,7 @@
 #include <string.h>
 #include "tree.h"
 
-Node* root;
+Node* root = NULL;
 
 Node* create_node(char * type, char * value) {
     Node* node = (Node*) malloc(sizeof(Node));
