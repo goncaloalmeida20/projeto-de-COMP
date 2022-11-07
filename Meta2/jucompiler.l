@@ -118,14 +118,15 @@ int main(int argc, char *argv[]){
         else if(strcmp(argv[1], "-e2") == 0) {
             flag_yacc = 0;
             yyparse();
+            free_tree(root);
         }
         else if(strcmp(argv[1], "-t") == 0) {
             flag_yacc = 1;
             yyparse();
             if(!yacc_error){
                 print_tree(root, 0);
-                free_tree(root);
-            } 
+            }
+            free_tree(root);
         }
     }
     return 0;
