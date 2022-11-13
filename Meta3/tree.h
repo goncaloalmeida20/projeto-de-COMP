@@ -24,10 +24,10 @@ Node* create_node(char *type, char *value, int line, int col);
 Node* add_son(Node *fat, Node *son);
 Node* add_bro(Node *n, Node *bro);
 
-Node* add_if(Node *expr, Node *statement_if, Node *statement_else);
-Node* add_while(Node *expr, Node *statement_while);
+Node* add_if(Node *expr, Node *statement_if, Node *statement_else, int line, int col);
+Node* add_while(Node *expr, Node *statement_while, int line, int col);
 
-Node* create_blocks(Node *statement1, Node* statement2);
+Node* create_blocks(Node *statement1, Node* statement2, int line, int col);
 
 void print_tree(Node *n, int level);
 void free_tree(Node *n);
