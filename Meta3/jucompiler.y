@@ -108,6 +108,7 @@ VarCommaId: COMMA ID                                {$$=add_son(create_node("Var
 Statement: LBRACE RBRACE                            {$$=NULL;}
     | LBRACE Statement RBRACE                       {$$=$2;}
     | LBRACE Statement MultipleStatements RBRACE    {$$=create_blocks($2,$3, line_yacc, col_yacc);}
+    | IF LPAR Expr RPAR Statement                   {$$=add_if($3, $5, NULL, line_yacc, col_yacc);}
     | IF LPAR Expr RPAR Statement ELSE Statement    {$$=add_if($3, $5, $7, line_yacc, col_yacc);}
     | WHILE LPAR Expr RPAR Statement                {$$=add_while($3, $5, line_yacc, col_yacc);}
     | RETURN SEMICOLON                              {$$=create_node("Return", NULL, line_yacc, col_yacc);}
