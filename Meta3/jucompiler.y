@@ -142,35 +142,8 @@ ParseArgs: PARSEINT LPAR ID LSQ Expr RSQ RPAR       {$$=add_bro(create_node("Id"
     | PARSEINT LPAR error RPAR                      {yacc_error = 1; $$=NULL;}
     ;
 
-Expr: Expr PLUS ExprNoAssign                                {$$=add_son(create_node("Add", NULL, line_yacc, col_yacc), add_bro($1, $3));} 
-    | Expr MINUS ExprNoAssign                               {$$=add_son(create_node("Sub", NULL, line_yacc, col_yacc), add_bro($1, $3));} 
-    | Expr STAR ExprNoAssign                                {$$=add_son(create_node("Mul", NULL, line_yacc, col_yacc), add_bro($1, $3));} 
-    | Expr DIV ExprNoAssign                                 {$$=add_son(create_node("Div", NULL, line_yacc, col_yacc), add_bro($1, $3));} 
-    | Expr MOD ExprNoAssign                                 {$$=add_son(create_node("Mod", NULL, line_yacc, col_yacc), add_bro($1, $3));} 
-    | Expr AND ExprNoAssign                                 {$$=add_son(create_node("And", NULL, line_yacc, col_yacc), add_bro($1, $3));} 
-    | Expr OR ExprNoAssign                                  {$$=add_son(create_node("Or", NULL, line_yacc, col_yacc), add_bro($1, $3));} 
-    | Expr XOR ExprNoAssign                                 {$$=add_son(create_node("Xor", NULL, line_yacc, col_yacc), add_bro($1, $3));} 
-    | Expr LSHIFT ExprNoAssign                              {$$=add_son(create_node("Lshift", NULL, line_yacc, col_yacc), add_bro($1, $3));} 
-    | Expr RSHIFT ExprNoAssign                              {$$=add_son(create_node("Rshift", NULL, line_yacc, col_yacc), add_bro($1, $3));} 
-    | Expr EQ ExprNoAssign                                  {$$=add_son(create_node("Eq", NULL, line_yacc, col_yacc), add_bro($1, $3));} 
-    | Expr GE ExprNoAssign                                  {$$=add_son(create_node("Ge", NULL, line_yacc, col_yacc), add_bro($1, $3));} 
-    | Expr GT ExprNoAssign                                  {$$=add_son(create_node("Gt", NULL, line_yacc, col_yacc), add_bro($1, $3));} 
-    | Expr LE ExprNoAssign                                  {$$=add_son(create_node("Le", NULL, line_yacc, col_yacc), add_bro($1, $3));} 
-    | Expr LT ExprNoAssign                                  {$$=add_son(create_node("Lt", NULL, line_yacc, col_yacc), add_bro($1, $3));} 
-    | Expr NE ExprNoAssign                                  {$$=add_son(create_node("Ne", NULL, line_yacc, col_yacc), add_bro($1, $3));} 
-    | MINUS ExprNoAssign                       %prec UNARY  {$$=add_son(create_node("Minus", NULL, line_yacc, col_yacc), $2);} 
-    | NOT ExprNoAssign                                      {$$=add_son(create_node("Not", NULL, line_yacc, col_yacc), $2);} 
-    | PLUS ExprNoAssign                        %prec UNARY  {$$=add_son(create_node("Plus", NULL, line_yacc, col_yacc), $2);} 
-    | LPAR Expr RPAR                                {$$=$2;}
-    | MethodInvocation                              {$$=add_son(create_node("Call", NULL, line_yacc, col_yacc), $1);} 
+Expr: ExprNoAssign                                  {$$=$1;}
     | Assignment                                    {$$=add_son(create_node("Assign", NULL, line_yacc, col_yacc), $1);} 
-    | ParseArgs                                     {$$=add_son(create_node("ParseArgs", NULL, line_yacc, col_yacc), $1);} 
-    | ID DOTLENGTH                                  {$$=add_son(create_node("Length", NULL, line_yacc, col_yacc), create_node("Id", $1, line_yacc, col_yacc));}
-    | ID                                            {$$=create_node("Id", $1, line_yacc, col_yacc);} 
-    | INTLIT                                        {$$=create_node("DecLit", $1, line_yacc, col_yacc);}
-    | REALLIT                                       {$$=create_node("RealLit", $1, line_yacc, col_yacc);}
-    | BOOLLIT                                       {$$=create_node("BoolLit", $1, line_yacc, col_yacc);}
-    | LPAR error RPAR                               {yacc_error = 1; $$=NULL;}
     ;
 
 ExprNoAssign: ExprNoAssign PLUS ExprNoAssign                        {$$=add_son(create_node("Add", NULL, line_yacc, col_yacc), add_bro($1, $3));} 
@@ -179,6 +152,7 @@ ExprNoAssign: ExprNoAssign PLUS ExprNoAssign                        {$$=add_son(
     | ExprNoAssign DIV ExprNoAssign                                 {$$=add_son(create_node("Div", NULL, line_yacc, col_yacc), add_bro($1, $3));} 
     | ExprNoAssign MOD ExprNoAssign                                 {$$=add_son(create_node("Mod", NULL, line_yacc, col_yacc), add_bro($1, $3));} 
     | ExprNoAssign AND ExprNoAssign                                 {$$=add_son(create_node("And", NULL, line_yacc, col_yacc), add_bro($1, $3));} 
+    | ExprNoAssign OR ExprNoAssign                                  {$$=add_son(create_node("Or", NULL, line_yacc, col_yacc), add_bro($1, $3));} 
     | ExprNoAssign XOR ExprNoAssign                                 {$$=add_son(create_node("Xor", NULL, line_yacc, col_yacc), add_bro($1, $3));} 
     | ExprNoAssign LSHIFT ExprNoAssign                              {$$=add_son(create_node("Lshift", NULL, line_yacc, col_yacc), add_bro($1, $3));} 
     | ExprNoAssign RSHIFT ExprNoAssign                              {$$=add_son(create_node("Rshift", NULL, line_yacc, col_yacc), add_bro($1, $3));} 

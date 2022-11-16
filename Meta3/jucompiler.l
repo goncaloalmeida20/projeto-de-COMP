@@ -10,12 +10,12 @@
     #include "tree.h"
     #include "y.tab.h"
     #include "symbol_table.h"
+    #include "semantics.h"
 
     extern int flag_yacc;
     extern int line_yacc, col_yacc;
     extern int yacc_error;
     extern void yyerror(char*);
-    TableElement *symtab=NULL;
 
     int flag = 0;
     int line = 1, line_temp = 1;

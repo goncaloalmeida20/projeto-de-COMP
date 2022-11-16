@@ -60,6 +60,8 @@ void free_tree(Node* n){
     if (n == NULL) return;
     free_tree(n->son);
     free_tree(n->bro);
+    free(n->type);
+    if(n->value != NULL) free(n->value);
     free(n);
 }
 
