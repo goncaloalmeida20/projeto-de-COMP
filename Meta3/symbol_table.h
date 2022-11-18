@@ -13,15 +13,17 @@ typedef struct table_element{
 	struct table_element *next;
 } TableElement;
 
-typedef struct symtab_list{
+typedef struct sym_tab{
 	char *scope;
-	TableElement *symtab;
-	struct symtab_list *next;
-} SymTabList;
+	ParamTypes *param_types;
+	TableElement *symbols;
+	struct sym_tab *next;
+} SymTab;
 
-extern TableElement *global_symtab;
-extern SymTabList *symtab_list;
+extern SymTab *global_symtab;
+extern SymTab *symtab_list;
 
+ParamTypes* add_param_types(ParamTypes *param_types, char *type);
 TableElement *search_el_scope(char *name, char *scope);
 TableElement *search_el_func(char *name, ParamTypes *param_types);
 int insert_el(char *name, char *type, char *scope);

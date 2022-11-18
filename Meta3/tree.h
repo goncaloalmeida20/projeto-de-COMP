@@ -7,11 +7,15 @@
 #ifndef TREE_H
 #define TREE_H
 
+#include "symbol_table.h"
+
 #define TYPE_SIZE 100
 
 typedef struct node{
 	char *type;
 	char *value;
+	char *semantic_type;
+	ParamTypes *param_types;
 	struct node * son;
     struct node * bro;
     int line;

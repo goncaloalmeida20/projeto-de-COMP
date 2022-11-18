@@ -127,6 +127,7 @@ int main(int argc, char *argv[]){
             yyparse();
             if(!yacc_error){
                 print_tree(root, 0);
+                check(root);
             }
             free_tree(root);
         }

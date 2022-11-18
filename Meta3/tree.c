@@ -14,8 +14,9 @@ Node* create_node(char * type, char * value, int line, int col) {
     Node* node = (Node*) malloc(sizeof(Node));
     if (node == NULL) {printf("ERRO MEMÓRIA\n"); exit(0);} // No memory
 
+    node->semantic_type = NULL;
+    node->param_types = NULL;
     node->type = strdup(type);
-
     if (value == NULL) node->value = NULL;
     else node->value = strdup(value);
         

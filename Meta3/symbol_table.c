@@ -3,62 +3,60 @@
 #include<string.h>
 #include<stdio.h>
 
-TableElement *global_symtab;
-SymTabList *symtab_list;
+SymTab *global_symtab = NULL;
+SymTab *symtab_list = NULL;
 
 
-TableElement* search_symtab(char *scope){
+SymTab* search_symtab(char *scope){
 	if(symtab_list == NULL){
-		printf("SYMTAB_LIST NULL ERROR\n");
 		return NULL;
 	}
 	
 	if(scope == NULL) return global_symtab;
 
-	for(SymTabList *aux = symtab_list; aux != NULL; aux = aux->next)
-		if(strcmp(scope, aux->scope) == 0) return aux->symtab;
+	for(SymTab *aux = symtab_list; aux != NULL; aux = aux->next)
+		if(strcmp(scope, aux->scope) == 0) return aux;
 	
 	printf("SCOPE NOT FOUND ERROR\n");
 	return NULL;
 }
 
-TableElement *search_el(char *name, TableElement *symtab){
-	//procurar elemento na tabela de símbolos atual
-	TableElement *aux;
-	if(!symtab) aux = global_symtab;
-	else aux = symtab;
-
-	for(; aux; aux=aux->next)
+TableElement *search_el(char *name, TableElement *symbols){
+	for(TableElement *aux = symbols; aux; aux=aux->next)
 		if(strcmp(aux->name, name)==0)
 			return aux;
 	return NULL;
 }
 
 TableElement *search_el_scope(char *name, char *scope){
-	TableElement *symtab = search_symtab(scope);
+	SymTab *symtab = search_symtab(scope);
 	if(!symtab) return NULL;
 	
 	//verificar a existência do identificador no scope atual
-	TableElement *el = search_el(name, symtab);
+	TableElement *el = search_el(name, symtab->symbols);
 	if(el) return el;
 
 	//verificar o scope global caso o scope atual não seja o global
 	if(!scope) return NULL;
-	return search_el(name, NULL);
+	return search_el(name, global_symtab);
 }
 
-void add_param_types(ParamTypes *param_types, char *type){
+ParamTypes* add_param_types(ParamTypes *param_types, char *type){
 	ParamTypes *new_param = (ParamTypes *)malloc(sizeof(ParamTypes));
 	if(!new_param){
 		printf("ERRO DE MALLOC ADD_PARAM_TYPES\n");
-		return;
+		return NULL;
 	}
 	new_param->param_type = strdup(type);
 	new_param->next = NULL;
 
+	if(!param_types) return new_param;
+
 	ParamTypes *aux;
 	for(aux = param_types; aux; aux = aux->next);
 	aux->next = new_param;
+
+	return param_types;
 }
 
 int compare_param_types(ParamTypes *pt1,ParamTypes *pt2){
@@ -70,16 +68,15 @@ int compare_param_types(ParamTypes *pt1,ParamTypes *pt2){
 }
 
 TableElement *search_el_func(char *name, ParamTypes *param_types){
-	TableElement *aux;
-	for(aux=global_symtab; aux; aux=aux->next)
-		if(aux->param_types && (aux->name, name)==0 && compare_param_types(param_types, aux->param_types))
+	for(TableElement *aux=global_symtab; aux; aux=aux->next)
+		if(aux->param_types && strcmp(aux->name, name)==0 && compare_param_types(param_types, aux->param_types))
 			return aux;
 	return NULL;
 }
 
 int insert_el(char *name, char *type, char *scope){
 	//verificar se o scope existe
-	TableElement *symtab = search_symtab(scope);
+	SymTab *symtab = search_symtab(scope);
 	if(!symtab){
 		return 0;
 	}
@@ -92,9 +89,32 @@ int insert_el(char *name, char *type, char *scope){
 	newSymbol->type = strdup(type);
 	newSymbol->next = NULL;
 
-	for(TableElement *aux=global_symtab; aux; previous = aux, aux=aux->next);
+	if(!symtab->symbols){
+		symtab->symbols = newSymbol;
+		return 1;
+	}
+
+	for(TableElement *aux= symtab->symbols; aux; previous = aux, aux=aux->next);
 	previous->next = newSymbol;
 	
+	return 1;
+}
+
+int insert_symtab(char *name, char *type, ParamTypes *param_types){
+	SymTab *newSymTab = (SymTab*) malloc(sizeof(SymTab));
+	newSymTab->scope = strdup(name);
+	newSymTab->param_types = param_types;
+	newSymTab->symbols = NULL;
+	newSymTab->next = NULL;
+
+	if(!symtab_list){
+		symtab_list = newSymTab;
+		return 1;
+	}
+	SymTab *aux, *previous;
+	for(aux = symtab_list; aux; previous=aux, aux=aux->next);
+	previous->next = newSymTab;
+
 	return 1;
 }
 
@@ -107,12 +127,17 @@ int insert_el_func(char *name, char *type, ParamTypes *param_types){
 	newSymbol->type = strdup(type);
 	newSymbol->next = NULL;
 
+	if(!global_symtab->symbols){
+		global_symtab->symbols = newSymbol;
+		return 1;
+	}
+
 	TableElement *aux, *previous;
 	for(aux=global_symtab; aux; previous = aux, aux=aux->next);
 	previous->next = newSymbol;
+
 	return 1;
 }
-
 
 // AINDA POR ALTERAR
 void show_table(){
