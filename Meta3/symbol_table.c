@@ -1,18 +1,19 @@
-#include "symbol_table.h"
 #include<stdlib.h>
 #include<string.h>
 #include<stdio.h>
+#include "symbol_table.h"
+#include "tree.h"
 
 SymTab *global_symtab = NULL;
 SymTab *symtab_list = NULL;
 
 
-SymTab* search_symtab(char *scope){
+SymTab* search_symtab(char *scope){	
+	if(scope == NULL) return global_symtab;
+	
 	if(symtab_list == NULL){
 		return NULL;
 	}
-	
-	if(scope == NULL) return global_symtab;
 
 	for(SymTab *aux = symtab_list; aux != NULL; aux = aux->next)
 		if(strcmp(scope, aux->scope) == 0) return aux;
@@ -38,38 +39,38 @@ TableElement *search_el_scope(char *name, char *scope){
 
 	//verificar o scope global caso o scope atual não seja o global
 	if(!scope) return NULL;
-	return search_el(name, global_symtab);
+	return search_el(name, global_symtab->symbols);
 }
 
-ParamTypes* add_param_types(ParamTypes *param_types, char *type){
-	ParamTypes *new_param = (ParamTypes *)malloc(sizeof(ParamTypes));
+Param* add_param(Param *params, char *type){
+	Param *new_param = (Param *)malloc(sizeof(Param));
 	if(!new_param){
-		printf("ERRO DE MALLOC ADD_PARAM_TYPES\n");
+		printf("ERRO DE MALLOC ADD_PARAMS\n");
 		return NULL;
 	}
 	new_param->param_type = strdup(type);
 	new_param->next = NULL;
 
-	if(!param_types) return new_param;
+	if(!params) return new_param;
 
-	ParamTypes *aux;
-	for(aux = param_types; aux; aux = aux->next);
+	Param *aux;
+	for(aux = params; aux; aux = aux->next);
 	aux->next = new_param;
 
-	return param_types;
+	return params;
 }
 
-int compare_param_types(ParamTypes *pt1,ParamTypes *pt2){
-	ParamTypes *aux1 = pt1, *aux2 = pt2;
+int compare_params(Param *pt1,Param *pt2){
+	Param *aux1 = pt1, *aux2 = pt2;
 	for(; aux1 && aux2; aux1 = aux1->next, aux2=aux2->next)
 		if(strcmp(aux1->param_type, aux2->param_type) != 0) return 0;
 	if(!aux1 && !aux2) return 1;
 	return 0;
 }
 
-TableElement *search_el_func(char *name, ParamTypes *param_types){
-	for(TableElement *aux=global_symtab; aux; aux=aux->next)
-		if(aux->param_types && strcmp(aux->name, name)==0 && compare_param_types(param_types, aux->param_types))
+TableElement *search_el_func(char *name, Param *params){
+	for(TableElement *aux=global_symtab->symbols; aux; aux=aux->next)
+		if(aux->params && strcmp(aux->name, name)==0 && compare_params(params, aux->params))
 			return aux;
 	return NULL;
 }
@@ -81,7 +82,7 @@ int insert_el(char *name, char *type, char *scope){
 		return 0;
 	}
 	
-	if(search_el(name, symtab)) return 0;
+	if(search_el(name, symtab->symbols)) return 0;
 	
 	TableElement *previous, *newSymbol=(TableElement*) malloc(sizeof(TableElement));
 
@@ -100,10 +101,15 @@ int insert_el(char *name, char *type, char *scope){
 	return 1;
 }
 
-int insert_symtab(char *name, char *type, ParamTypes *param_types){
+int insert_symtab(char *name, char *type, Param *params){
 	SymTab *newSymTab = (SymTab*) malloc(sizeof(SymTab));
+	if(!newSymTab){
+		printf("MALLOC ERROR INSERT_SYMTAB\n");
+		return 0;
+	}
+
 	newSymTab->scope = strdup(name);
-	newSymTab->param_types = param_types;
+	newSymTab->params = params;
 	newSymTab->symbols = NULL;
 	newSymTab->next = NULL;
 
@@ -118,12 +124,12 @@ int insert_symtab(char *name, char *type, ParamTypes *param_types){
 	return 1;
 }
 
-int insert_el_func(char *name, char *type, ParamTypes *param_types){
-	if(search_el_func(name, param_types)) return 0;
+int insert_el_func(char *name, char *type, Param *params){
+	if(search_el_func(name, params)) return 0;
 
 	TableElement *newSymbol=(TableElement*) malloc(sizeof(TableElement));
 	newSymbol->name = strdup(name);
-	newSymbol->param_types = param_types;
+	newSymbol->params = params;
 	newSymbol->type = strdup(type);
 	newSymbol->next = NULL;
 
@@ -133,16 +139,56 @@ int insert_el_func(char *name, char *type, ParamTypes *param_types){
 	}
 
 	TableElement *aux, *previous;
-	for(aux=global_symtab; aux; previous = aux, aux=aux->next);
+	for(aux=global_symtab->symbols; aux; previous = aux, aux=aux->next);
 	previous->next = newSymbol;
 
 	return 1;
 }
 
-// AINDA POR ALTERAR
+int init_global_symtab(){
+	global_symtab = (SymTab*) malloc(sizeof(SymTab));
+	if(!global_symtab){
+		printf("MALLOC ERROR INIT_GLOBAL_SYMTAB\n");
+		return 0;
+	}
+	global_symtab->scope = NULL;
+	global_symtab->params = NULL;
+	global_symtab->symbols = NULL;
+	global_symtab->next = NULL;
+	return 1;
+}
+
+void print_params(Param *params){
+    Param *aux;
+    for(aux=params; aux; aux = aux->next){
+        printf("%s", aux->param_type);
+        if (aux->next) printf(",");
+    }
+}
+
 void show_table(){
-    TableElement *aux;
-    printf("\n");
-    for(aux=global_symtab; aux; aux=aux->next)
-	    printf("%s\t[ParamTypes]\t%s[ntparam]", aux->name, aux->type);
+    TableElement *aux, *aux_symbols;
+    Param *aux_param;
+    SymTab *aux_symtab;
+    printf("===== Class %s Symbol Table =====\n", root->son->value);
+    for(aux=global_symtab->symbols; aux; aux=aux->next) {
+        if (aux->params) {
+            printf("%s\t(", aux->name);
+            print_params(aux->params);
+            printf(")\t%s", aux->type);
+        }
+        else
+            printf("%s\t%s\n", aux->name, aux->type);
+    }
+    for(aux_symtab = symtab_list; aux_symtab; aux_symtab = aux_symtab->next){
+        printf("===== Method %s(", aux_symtab->scope);
+        print_params(aux_symtab->params);
+        printf(") Symbol Table =====\n"); 
+        printf("return\t%s\n", aux->type);
+        for (aux_symbols=aux_symtab->symbols; aux_symbols; aux_symbols->next){
+            for(aux_param = aux_symbols->params; aux_param; aux_param= aux_param->next)
+                printf("%s\t%s\tparam\n", aux_param->name, aux_param->param_type);
+            printf("%s\t%s\n", aux_symbols->name, aux_symbols->type);
+        }
+    }
 }

@@ -11,11 +11,17 @@
 
 #define TYPE_SIZE 100
 
+typedef struct _id{
+	char *name;
+	int line;
+    int col;
+} Id;
+
 typedef struct node{
 	char *type;
 	char *value;
 	char *semantic_type;
-	ParamTypes *param_types;
+	Param *params;
 	struct node * son;
     struct node * bro;
     int line;

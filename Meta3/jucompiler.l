@@ -126,8 +126,8 @@ int main(int argc, char *argv[]){
             flag_yacc = 1;
             yyparse();
             if(!yacc_error){
+                semantics_check();
                 print_tree(root, 0);
-                check(root);
             }
             free_tree(root);
         }

@@ -4,6 +4,6 @@
 #include "tree.h"
 #include "symbol_table.h"
 
-int check(Node *node);
+int semantics_check();
 
 #endif

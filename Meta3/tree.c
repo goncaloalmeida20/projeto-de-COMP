@@ -15,7 +15,7 @@ Node* create_node(char * type, char * value, int line, int col) {
     if (node == NULL) {printf("ERRO MEMÓRIA\n"); exit(0);} // No memory
 
     node->semantic_type = NULL;
-    node->param_types = NULL;
+    node->params = NULL;
     node->type = strdup(type);
     if (value == NULL) node->value = NULL;
     else node->value = strdup(value);
@@ -52,6 +52,7 @@ void print_tree(Node *n, int level){
     for(i = 0; i < level * 2; i++) putchar('.');
     if (n->value == NULL) printf("%s\n", n->type);
     else printf("%s(%s)\n", n->type, n->value);
+    //else printf("%s(%s) %d %d\n", n->type, n->value, n->line, n->col);
 
     print_tree(n->son, level+1);
     print_tree(n->bro, level);
