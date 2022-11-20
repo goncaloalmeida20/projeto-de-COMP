@@ -28,7 +28,19 @@ int check(Node *node){
         return 0;
     }
     if(strcmp(node->type, "MethodDecl") == 0){
+        Node *method_header = node->son, *method_type = method_header->son, *method_id = method_type->bro;
+        Node *method_params = method_id->bro;
+        Param *params = NULL;
+        
+        for(Node *aux = method_params->son; aux; aux = aux->bro){
+            params = add_param(params, aux->son->bro->value, aux->son->type);
+        }
 
+        insert_el_func(method_id->value, method_type->type, params);
+
+        Node *method_body = method_header->bro;
+        
+        
     }
     printf("%s\n", node->type);
 }

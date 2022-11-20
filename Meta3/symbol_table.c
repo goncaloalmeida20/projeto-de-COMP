@@ -42,20 +42,22 @@ TableElement *search_el_scope(char *name, char *scope){
 	return search_el(name, global_symtab->symbols);
 }
 
-Param* add_param(Param *params, char *type){
+Param* add_param(Param *params, char *name, char *type){
 	Param *new_param = (Param *)malloc(sizeof(Param));
 	if(!new_param){
 		printf("ERRO DE MALLOC ADD_PARAMS\n");
 		return NULL;
 	}
+
+	new_param->name = strdup(name);
 	new_param->param_type = strdup(type);
 	new_param->next = NULL;
 
 	if(!params) return new_param;
 
-	Param *aux;
-	for(aux = params; aux; aux = aux->next);
-	aux->next = new_param;
+	Param *aux, *previous;
+	for(aux = params; aux; previous = aux, aux = aux->next);
+	previous->next = new_param;
 
 	return params;
 }
@@ -175,7 +177,7 @@ void show_table(){
         if (aux->params) {
             printf("%s\t(", aux->name);
             print_params(aux->params);
-            printf(")\t%s", aux->type);
+            printf(")\t%s\n", aux->type);
         }
         else
             printf("%s\t%s\n", aux->name, aux->type);
