@@ -15,6 +15,7 @@ typedef struct table_element{
 } TableElement;
 
 typedef struct sym_tab{
+	char *type;
 	char *scope;
 	Param *params;
 	TableElement *symbols;

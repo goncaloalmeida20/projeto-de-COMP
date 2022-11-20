@@ -83,7 +83,7 @@ int insert_el(char *name, char *type, char *scope){
 	if(!symtab){
 		return 0;
 	}
-	
+
 	if(search_el(name, symtab->symbols)) return 0;
 	
 	TableElement *previous, *newSymbol=(TableElement*) malloc(sizeof(TableElement));
@@ -111,6 +111,7 @@ int insert_symtab(char *name, char *type, Param *params){
 	}
 
 	newSymTab->scope = strdup(name);
+	newSymTab->type = strdup(type);
 	newSymTab->params = params;
 	newSymTab->symbols = NULL;
 	newSymTab->next = NULL;
@@ -144,7 +145,7 @@ int insert_el_func(char *name, char *type, Param *params){
 	for(aux=global_symtab->symbols; aux; previous = aux, aux=aux->next);
 	previous->next = newSymbol;
 
-	return 1;
+	return insert_symtab(name, type, params);
 }
 
 int init_global_symtab(){
@@ -160,10 +161,19 @@ int init_global_symtab(){
 	return 1;
 }
 
+char* print_type(char *type){
+    if(strcmp(type, "Int") == 0) return "int";
+    else if(strcmp(type, "Bool") == 0) return "boolean";
+    else if(strcmp(type, "Double") == 0) return "double";
+    else if(strcmp(type, "StringArray") == 0) return "String[]";
+    else if(strcmp(type, "Void") == 0) return "void";
+    else return type;
+}
+
 void print_params(Param *params){
     Param *aux;
     for(aux=params; aux; aux = aux->next){
-        printf("%s", aux->param_type);
+        printf("%s", print_type(aux->param_type));
         if (aux->next) printf(",");
     }
 }
@@ -177,20 +187,19 @@ void show_table(){
         if (aux->params) {
             printf("%s\t(", aux->name);
             print_params(aux->params);
-            printf(")\t%s\n", aux->type);
+            printf(")\t%s\n", print_type(aux->type));
         }
         else
-            printf("%s\t%s\n", aux->name, aux->type);
+            printf("%s\t%s\n", aux->name, print_type(aux->type));
     }
     for(aux_symtab = symtab_list; aux_symtab; aux_symtab = aux_symtab->next){
         printf("===== Method %s(", aux_symtab->scope);
         print_params(aux_symtab->params);
         printf(") Symbol Table =====\n"); 
-        printf("return\t%s\n", aux->type);
-        for (aux_symbols=aux_symtab->symbols; aux_symbols; aux_symbols->next){
-            for(aux_param = aux_symbols->params; aux_param; aux_param= aux_param->next)
-                printf("%s\t%s\tparam\n", aux_param->name, aux_param->param_type);
-            printf("%s\t%s\n", aux_symbols->name, aux_symbols->type);
-        }
+        printf("return\t%s\n", print_type(aux_symtab->type));
+		for(aux_param = aux_symtab->params; aux_param; aux_param= aux_param->next)
+			printf("%s\t%s\tparam\n", aux_param->name, print_type(aux_param->param_type));
+        for (aux_symbols=aux_symtab->symbols; aux_symbols; aux_symbols = aux_symbols->next)
+            printf("%s\t%s\n", aux_symbols->name, print_type(aux_symbols->type));
     }
 }

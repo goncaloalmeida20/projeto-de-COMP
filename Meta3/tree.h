@@ -11,11 +11,11 @@
 
 #define TYPE_SIZE 100
 
-typedef struct _id{
+typedef struct _token{
 	char *name;
 	int line;
     int col;
-} Id;
+} Token;
 
 typedef struct node{
 	char *type;
