@@ -64,25 +64,25 @@ char* check(Node *node){
     if(strcmp(node->type, "Or") == 0 || strcmp(node->type, "And") == 0 || strcmp(node->type, "Xor") == 0){
         char *son_type = check(node->son);
         char *other_son_type = check(node->son->bro);
-        if(!(strcmp(son_type, "Bool") == 0 && strcmp(son_type, other_son_type) == 0)){
+        if(!(strcmp(son_type, "boolean") == 0 && strcmp(son_type, other_son_type) == 0)){
             error_operator_cannot_be_applied(node, son_type, other_son_type);
         }
-        return "Bool";
+        return "boolean";
     }
     if(strcmp(node->type, "Not") == 0){
         char *son_type = check(node->son);
-        if(!(strcmp(son_type, "Bool") == 0)){
+        if(!(strcmp(son_type, "boolean") == 0)){
             error_operator_cannot_be_applied(node, son_type, NULL);
         }
-        return "Bool";
+        return "boolean";
     }
     if(strcmp(node->type, "Minus") == 0 || strcmp(node->type, "Plus") == 0){
         char *son_type = check(node->son);
-        if(!(strcmp(son_type, "DecLit") == 0 || strcmp(son_type, "RealLit") == 0)){
+        if(!(strcmp(son_type, "int") == 0 || strcmp(son_type, "double") == 0)){
             error_operator_cannot_be_applied(node, son_type, NULL);
         }
-        if (strcmp(son_type, "DecLit") == 0 && strcmp(son_type, other_son_type) == 0) return "Int";
-        if (strcmp(son_type, "RealLit") == 0 || strcmp(other_son_type, "RealLit") == 0) return "Double";
+        if (strcmp(son_type, "int") == 0 && strcmp(son_type, other_son_type) == 0) return "int";
+        if (strcmp(son_type, "double") == 0 || strcmp(other_son_type, "double") == 0) return "double";
 
     }
     if(strcmp(node->type, "Length") == 0){
@@ -90,7 +90,7 @@ char* check(Node *node){
         if(!(strcmp(son_type, "StringArray") == 0)){
            error_operator_cannot_be_applied(node, son_type, NULL); 
         }
-        return "Int";
+        return "int";
     }
     if(strcmp(node->type, "Eq") == 0 || strcmp(node->type, "Ne") == 0 || strcmp(node->type, "Lt") == 0 || strcmp(node->type, "Gt") == 0 || strcmp(node->type, "Le") == 0 || strcmp(node->type, "Ge") == 0){
         char *son_type = check(node->son);
@@ -98,24 +98,24 @@ char* check(Node *node){
         if(!(strcmp(son_type, other_son_type) == 0)){
             error_operator_cannot_be_applied(node, son_type, other_son_type);
         }
-        return "Bool";
+        return "boolean";
     }
     if(strcmp(node->type, "Add") == 0 || strcmp(node->type, "Mul") == 0 || strcmp(node->type, "Sub") == 0 || strcmp(node->type, "Div") == 0 || strcmp(node->type, "Mod") == 0){
         char *son_type = check(node->son);
         char *other_son_type = check(node->son->bro);
-        if(!((strcmp(son_type, "DecLit") == 0 || strcmp(son_type, "RealLit") == 0) && strcmp(son_type, other_son_type) == 0)){
+        if(!((strcmp(son_type, "int") == 0 || strcmp(son_type, "double") == 0) && strcmp(son_type, other_son_type) == 0)){
             error_operator_cannot_be_applied(node, son_type, other_son_type);
         }
-        if (strcmp(son_type, "DecLit") == 0 && strcmp(son_type, other_son_type) == 0) return "Int";
-        if (strcmp(son_type, "RealLit") == 0 || strcmp(other_son_type, "RealLit") == 0) return "Double";
+        if (strcmp(son_type, "int") == 0 && strcmp(son_type, other_son_type) == 0) return "int";
+        if (strcmp(son_type, "double") == 0 || strcmp(other_son_type, "double") == 0) return "double";
     }
     if(strcmp(node->type, "Lshift") == 0 || strcmp(node->type, "Rshift") == 0){
         char *son_type = check(node->son);
         char *other_son_type = check(node->son->bro);
-        if(!(strcmp(son_type, "DecLit") == 0 && strcmp(son_type, other_son_type) == 0)){
+        if(!(strcmp(son_type, "int") == 0 && strcmp(son_type, other_son_type) == 0)){
             error_operator_cannot_be_applied(node, son_type, other_son_type);
         }
-        return "Int";
+        return "int";
     }
     printf("%s\n", node->type);
     return NULL;
