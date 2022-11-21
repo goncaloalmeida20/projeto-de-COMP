@@ -117,6 +117,21 @@ char* check(Node *node){
         }
         return "int";
     }
+    if(strcmp(node->type, "DecLit") == 0){
+        node->semantic_type = strdup("int");
+        return "int";
+    }
+    if(strcmp(node->type, "RealLit") == 0){
+        node->semantic_type = strdup("double");
+        return "double";
+    }
+    if(strcmp(node->type, "BoolLit") == 0){
+        node->semantic_type = strdup("boolean");
+        return "boolean";
+    }
+    if(strcmp(node->type, "Id") == 0){
+        
+    }
     printf("%s\n", node->type);
     return NULL;
 }
