@@ -97,6 +97,11 @@ char* check(Node *node){
         check(node->son);
         return NULL;
     }
+    if(strcmp(node->type, "Print") == 0){
+        check(node->son);
+        return NULL;
+    }
+    if(strcmp())
     if(strcmp(node->type, "Or") == 0 || strcmp(node->type, "And") == 0 || strcmp(node->type, "Xor") == 0){
         char *son_type = check(node->son);
         char *other_son_type = check(node->son->bro);
