@@ -64,26 +64,33 @@ char* check(Node *node){
     if(strcmp(node->type, "Or") == 0 || strcmp(node->type, "And") == 0 || strcmp(node->type, "Xor") == 0){
         char *son_type = check(node->son);
         char *other_son_type = check(node->son->bro);
-        if(!(strcmp(son_type, "Bool") == 0 && strcmp(other_son_type, "Bool") == 0)){
+        if(!(strcmp(son_type, "Bool") == 0 && strcmp(son_type, other_son_type) == 0)){
             error_operator_cannot_be_applied(node, son_type, other_son_type);
         }
+        return "Bool";
     }
     if(strcmp(node->type, "Not") == 0){
         char *son_type = check(node->son);
         if(!(strcmp(son_type, "Bool") == 0)){
             error_operator_cannot_be_applied(node, son_type, NULL);
         }
+        return "Bool";
     }
     if(strcmp(node->type, "Minus") == 0 || strcmp(node->type, "Plus") == 0){
         char *son_type = check(node->son);
-        // Sem certeza se é Int ou DecLit e onde colocar o Double
-        if(!(strcmp(son_type, "DecLit") == 0 || strcmp(son_type, "RealLit") == 0 || strcmp(son_type, "Length") == 0)){
+        if(!(strcmp(son_type, "DecLit") == 0 || strcmp(son_type, "RealLit") == 0)){
             error_operator_cannot_be_applied(node, son_type, NULL);
         }
+        if (strcmp(son_type, "DecLit") == 0 && strcmp(son_type, other_son_type) == 0) return "Int";
+        if (strcmp(son_type, "RealLit") == 0 || strcmp(other_son_type, "RealLit") == 0) return "Double";
+
     }
     if(strcmp(node->type, "Length") == 0){
         char *son_type = check(node->son);
-        // Para arrays, mas como estão definidas?
+        if(!(strcmp(son_type, "StringArray") == 0)){
+           error_operator_cannot_be_applied(node, son_type, NULL); 
+        }
+        return "Int";
     }
     if(strcmp(node->type, "Eq") == 0 || strcmp(node->type, "Ne") == 0 || strcmp(node->type, "Lt") == 0 || strcmp(node->type, "Gt") == 0 || strcmp(node->type, "Le") == 0 || strcmp(node->type, "Ge") == 0){
         char *son_type = check(node->son);
@@ -91,75 +98,24 @@ char* check(Node *node){
         if(!(strcmp(son_type, other_son_type) == 0)){
             error_operator_cannot_be_applied(node, son_type, other_son_type);
         }
+        return "Bool";
     }
-    if(strcmp(node->type, "Add") == 0){
+    if(strcmp(node->type, "Add") == 0 || strcmp(node->type, "Mul") == 0 || strcmp(node->type, "Sub") == 0 || strcmp(node->type, "Div") == 0 || strcmp(node->type, "Mod") == 0){
         char *son_type = check(node->son);
         char *other_son_type = check(node->son->bro);
-        // Onde está Int pode ser DecLit, RealLit e Length
-        // Dá e comutativo (String ou char): String + String / String + Boolean / String + Int / Int + Int / Boolean + Boolean
-        // Não dá e comutativo: Int + Boolean
-        // Se for soma de números verificar o out of bounds
-        if(!(strcmp(son_type, other_son_type) == 0)){
+        if(!((strcmp(son_type, "DecLit") == 0 || strcmp(son_type, "RealLit") == 0) && strcmp(son_type, other_son_type) == 0)){
             error_operator_cannot_be_applied(node, son_type, other_son_type);
         }
+        if (strcmp(son_type, "DecLit") == 0 && strcmp(son_type, other_son_type) == 0) return "Int";
+        if (strcmp(son_type, "RealLit") == 0 || strcmp(other_son_type, "RealLit") == 0) return "Double";
     }
-    if(strcmp(node->type, "Sub") == 0){
+    if(strcmp(node->type, "Lshift") == 0 || strcmp(node->type, "Rshift") == 0){
         char *son_type = check(node->son);
         char *other_son_type = check(node->son->bro);
-        // Onde está Int pode ser DecLit, RealLit e Length
-        // Dá e comutativo: Int - Int FALTA ISTO
-        // Se for subtração de números verificar o out of bounds
-        if(!(strcmp(son_type, other_son_type) == 0)){
+        if(!(strcmp(son_type, "DecLit") == 0 && strcmp(son_type, other_son_type) == 0)){
             error_operator_cannot_be_applied(node, son_type, other_son_type);
         }
-    }
-    if(strcmp(node->type, "Mul") == 0){
-        char *son_type = check(node->son);
-        char *other_son_type = check(node->son->bro);
-        // Onde está Int pode ser DecLit, RealLit e Length
-        // Dá e comutativo: Int * Int FALTA ISTO
-        // Se for multiplicação de números verificar o out of bounds
-        if(!(strcmp(son_type, other_son_type) == 0)){
-            error_operator_cannot_be_applied(node, son_type, other_son_type);
-        }
-    }
-    if(strcmp(node->type, "Div") == 0){
-        char *son_type = check(node->son);
-        char *other_son_type = check(node->son->bro);
-        // Onde está Int pode ser DecLit, RealLit e Length
-        // Dá e comutativo: Int / Int FALTA ISTO
-        if(!(strcmp(son_type, other_son_type) == 0)){
-            error_operator_cannot_be_applied(node, son_type, other_son_type);
-        }
-    }
-    if(strcmp(node->type, "Mod") == 0){
-        char *son_type = check(node->son);
-        char *other_son_type = check(node->son->bro);
-        // Onde está Int pode ser DecLit, RealLit e Length
-        // Dá e comutativo: Int % Int FALTA ISTO
-        if(!(strcmp(son_type, other_son_type) == 0)){
-            error_operator_cannot_be_applied(node, son_type, other_son_type);
-        }
-    }
-    if(strcmp(node->type, "Lshift") == 0){
-        char *son_type = check(node->son);
-        char *other_son_type = check(node->son->bro);
-        // Onde está Int pode ser DecLit, RealLit e Length
-        // Dá e comutativo: Int << Int FALTA ISTO
-        // verificar o out of bounds
-        if(!(strcmp(son_type, other_son_type) == 0)){
-            error_operator_cannot_be_applied(node, son_type, other_son_type);
-        }
-    }
-    if(strcmp(node->type, "Rshift") == 0){
-        char *son_type = check(node->son);
-        char *other_son_type = check(node->son->bro);
-        // Onde está Int pode ser DecLit, RealLit e Length
-        // Dá e comutativo: Int >> Int FALTA ISTO
-        // verificar o out of bounds
-        if(!(strcmp(son_type, other_son_type) == 0)){
-            error_operator_cannot_be_applied(node, son_type, other_son_type);
-        }
+        return "Int";
     }
     printf("%s\n", node->type);
     return NULL;
