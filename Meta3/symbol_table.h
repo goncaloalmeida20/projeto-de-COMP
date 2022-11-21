@@ -32,5 +32,6 @@ int insert_el(char *name, char *type, char *scope);
 int insert_el_func(char *name, char *type, Param *params);
 int init_global_symtab();
 void show_table();
+char* convert_type(char *type);
 
 #endif

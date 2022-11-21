@@ -50,8 +50,14 @@ void print_tree(Node *n, int level){
     int i;
     
     for(i = 0; i < level * 2; i++) putchar('.');
-    if (n->value == NULL) printf("%s\n", n->type);
-    else printf("%s(%s)\n", n->type, n->value);
+    if (n->value == NULL){
+        if(n->semantic_type) printf("%s - %s\n", n->type, n->semantic_type);
+        else printf("%s\n", n->type);
+    } 
+    else{
+        if(n->semantic_type) printf("%s(%s) - %s\n", n->type, n->value, n->semantic_type);
+        else printf("%s(%s)\n", n->type, n->value);
+    }
     //else printf("%s(%s) %d %d\n", n->type, n->value, n->line, n->col);
 
     print_tree(n->son, level+1);
