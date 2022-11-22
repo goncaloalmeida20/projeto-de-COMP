@@ -24,7 +24,7 @@ SymTab* search_symtab(char *scope){
 
 TableElement *search_el(char *name, TableElement *symbols){
 	for(TableElement *aux = symbols; aux; aux=aux->next)
-		if(strcmp(aux->name, name)==0)
+		if(!aux->params && strcmp(aux->name, name)==0)
 			return aux;
 	return NULL;
 }
@@ -48,8 +48,8 @@ Param* add_param(Param *params, char *name, char *type){
 		printf("ERRO DE MALLOC ADD_PARAMS\n");
 		return NULL;
 	}
-
-	new_param->name = strdup(name);
+	if(!name) new_param->name = NULL;
+	else new_param->name = strdup(name);
 	new_param->param_type = strdup(type);
 	new_param->next = NULL;
 
@@ -132,13 +132,15 @@ int insert_el_func(char *name, char *type, Param *params){
 
 	TableElement *newSymbol=(TableElement*) malloc(sizeof(TableElement));
 	newSymbol->name = strdup(name);
-	newSymbol->params = params;
+	if(!params){
+		newSymbol->params = add_param(NULL, NULL, "");
+	}
+	else newSymbol->params = params;
 	newSymbol->type = strdup(type);
 	newSymbol->next = NULL;
-
 	if(!global_symtab->symbols){
 		global_symtab->symbols = newSymbol;
-		return 1;
+		return insert_symtab(name, type, params);
 	}
 
 	TableElement *aux, *previous;
@@ -193,13 +195,14 @@ void show_table(){
             printf("%s\t%s\n", aux->name, convert_type(aux->type));
     }
     for(aux_symtab = symtab_list; aux_symtab; aux_symtab = aux_symtab->next){
-        printf("===== Method %s(", aux_symtab->scope);
+        printf("\n===== Method %s(", aux_symtab->scope);
         print_params(aux_symtab->params);
         printf(") Symbol Table =====\n"); 
-        printf("return\t%s\n", convert_type(aux_symtab->type));
+        printf("return\t\t%s\n", convert_type(aux_symtab->type));
 		for(aux_param = aux_symtab->params; aux_param; aux_param= aux_param->next)
 			printf("%s\t%s\tparam\n", aux_param->name, convert_type(aux_param->param_type));
         for (aux_symbols=aux_symtab->symbols; aux_symbols; aux_symbols = aux_symbols->next)
-            printf("%s\t%s\n", aux_symbols->name, convert_type(aux_symbols->type));
+            printf("%s\t\t%s\n", aux_symbols->name, convert_type(aux_symbols->type));
     }
+	printf("\n");	
 }

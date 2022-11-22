@@ -4,6 +4,7 @@
 #include "symbol_table.h"
 
 char *scope = NULL;
+char *return_type = NULL;
 
 /*
 mapeia tipos segundo as seguintes regras:
@@ -15,6 +16,10 @@ int map_int_double(char *type){
     if(strcmp(type, "int") == 0) return 0;
     if(strcmp(type, "double") == 0) return 1;
     return -1;
+}
+
+void error_incompatible_type(Node *n, char *type){
+    printf("Line %d, col %d: Incompatible type %s in %s statement\n", n->line, n->col, type, n->type);
 }
 
 void error_symbol_not_found(Node *n){
@@ -34,7 +39,7 @@ void declare_method(Node *node){
         Node *method_header = node->son, *method_type = method_header->son, *method_id = method_type->bro;
         Node *method_params = method_id->bro;
         Param *params = NULL;
-        
+        printf("ajdosjdsaidjsa\n");
         for(Node *aux = method_params->son; aux; aux = aux->bro){
             params = add_param(params, aux->son->bro->value, aux->son->type);
         }
@@ -68,13 +73,16 @@ char* check(Node *node){
         return NULL;
     }
     if(strcmp(node->type, "MethodDecl") == 0){
+        char *method_return_type = node->son->son->type;
         char *method_id = node->son->son->bro->value;
         scope = strdup(method_id);
+        return_type = strdup(method_return_type);
         Node *method_body = node->son->bro;
         for(Node *aux = method_body->son; aux; aux = aux->bro){
             check(aux);
         }
         scope = NULL;
+        return_type = NULL;
         return NULL;
     }
     if(strcmp(node->type, "Block") == 0){
@@ -83,25 +91,68 @@ char* check(Node *node){
         return NULL;
     }
     if(strcmp(node->type, "If") == 0){
-        check(node->son);
+        char *son_type = check(node->son);
+        if(!(strcmp(son_type, "boolean") == 0)){
+            error_incompatible_type(node, son_type);
+        }
         check(node->son->bro);
         check(node->son->bro->bro);
         return NULL;
     }
     if(strcmp(node->type, "While") == 0){
-        check(node->son);
+        char *son_type = check(node->son);
+        if(!(strcmp(son_type, "boolean") == 0)){
+            error_incompatible_type(node, son_type);
+        }
         check(node->son->bro);
         return NULL;
     }
     if(strcmp(node->type, "Return") == 0){
-        check(node->son);
+        if(!node->son) return NULL;
+        char *son_type = check(node->son);
+        if(strcmp(son_type, "void") == 0){
+            error_incompatible_type(node, son_type);
+        }
+        else if(strcmp(son_type, return_type) == 0){
+            error_incompatible_type(node, son_type);
+        }
+        node->semantic_type = strdup(son_type);
         return NULL;
+    }
+    if(strcmp(node->type, "Call") == 0){
+        char *son_type, *func_id = node->son->value;
+        Param *params = NULL;
+        for(Node *aux = node->son->bro; aux; aux = aux->bro){
+            son_type = check(aux);
+            params = add_param(params, NULL, aux->type);
+        }
+        TableElement *func = search_el_func(func_id, params);
+        if(!func){
+            error_symbol_not_found(node->son);
+            node->semantic_type = strdup("undef");
+            return "undef";
+        }
+        node->semantic_type = strdup(func->type);
+        return node->semantic_type;
     }
     if(strcmp(node->type, "Print") == 0){
-        check(node->son);
+        char *son_type = check(node->son);
+        if(strcmp(son_type, "void") == 0 || strcmp(son_type, "undef") == 0){
+            error_incompatible_type(node, son_type);
+        }
         return NULL;
     }
-    if(strcmp())
+    if(strcmp(node->type, "Assign") == 0){
+        char *son_type = check(node->son);
+        char *other_son_type = check(node->son->bro);
+        int mapped_son_type = map_int_double(son_type);
+        int mapped_other_son_type = map_int_double(other_son_type);
+        if(!(strcmp(son_type, other_son_type) == 0) && !(mapped_son_type >= 0 && mapped_other_son_type >= 0 && mapped_son_type < mapped_other_son_type)){
+            error_operator_cannot_be_applied(node, son_type, other_son_type);
+        }
+        node->semantic_type = strdup(son_type);
+        return son_type;
+    }
     if(strcmp(node->type, "Or") == 0 || strcmp(node->type, "And") == 0 || strcmp(node->type, "Xor") == 0){
         char *son_type = check(node->son);
         char *other_son_type = check(node->son->bro);
@@ -175,6 +226,14 @@ char* check(Node *node){
         node->semantic_type = strdup("int");
         return "int";
     }
+    if(strcmp(node->type, "ParseArgs") == 0){
+        char *son_type = check(node->son);
+        char *other_son_type = check(node->son->bro);
+        if(!(strcmp(son_type, "String[]") == 0 && strcmp(other_son_type, "int") == 0)){
+            error_operator_cannot_be_applied(node, son_type, other_son_type);
+        }
+        return "int";
+    }
     if(strcmp(node->type, "DecLit") == 0){
         node->semantic_type = strdup("int");
         return "int";
@@ -186,6 +245,10 @@ char* check(Node *node){
     if(strcmp(node->type, "BoolLit") == 0){
         node->semantic_type = strdup("boolean");
         return "boolean";
+    }
+    if(strcmp(node->type, "StrLit") == 0){
+        node->semantic_type = strdup("String");
+        return "String";
     }
     if(strcmp(node->type, "Id") == 0){
         TableElement *id_found = search_el_scope(node->value, scope);
