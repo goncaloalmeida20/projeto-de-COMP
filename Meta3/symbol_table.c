@@ -33,24 +33,28 @@ SymTab* search_symtab(char *scope){
 	return NULL;
 }
 
-TableElement *search_el(char *name, TableElement *symbols){
-	for(TableElement *aux = symbols; aux; aux=aux->next)
+
+char *search_el(char *name, SymTab *symtab){
+	for(Param *aux = symtab->params; aux; aux = aux->next)
+		if(strcmp(aux->name, name)==0)
+			return aux->param_type;
+	for(TableElement *aux = symtab->symbols; aux; aux=aux->next)
 		if(!aux->params && strcmp(aux->name, name)==0)
-			return aux;
+			return aux->type;
+		
 	return NULL;
 }
 
-TableElement *search_el_scope(char *name, char *scope){
+char *search_el_scope(char *name, char *scope){
 	SymTab *symtab = search_symtab(scope);
 	if(!symtab) return NULL;
-	
 	//verificar a existência do identificador no scope atual
-	TableElement *el = search_el(name, symtab->symbols);
+	char *el = search_el(name, symtab);
 	if(el) return el;
 
 	//verificar o scope global caso o scope atual não seja o global
 	if(!scope) return NULL;
-	return search_el(name, global_symtab->symbols);
+	return search_el(name, global_symtab);
 }
 
 Param* add_param(Param *params, char *name, char *type){
@@ -121,14 +125,14 @@ int insert_el(char *name, char *type, char *scope){
 		return 0;
 	}
 
-	if(search_el(name, symtab->symbols)) return 0;
+	if(search_el(name, symtab)) return 0;
 	
 	TableElement *previous, *newSymbol=(TableElement*) malloc(sizeof(TableElement));
 
 	newSymbol->name = strdup(name);
 	newSymbol->type = strdup(type);
 	newSymbol->next = NULL;
-
+	
 	if(!symtab->symbols){
 		symtab->symbols = newSymbol;
 		return 1;
@@ -200,6 +204,7 @@ int init_global_symtab(){
 	return 1;
 }
 
+/*
 char* convert_type(char *type){
     if(strcmp(type, "Int") == 0) return "int";
     else if(strcmp(type, "Bool") == 0) return "boolean";
@@ -207,12 +212,12 @@ char* convert_type(char *type){
     else if(strcmp(type, "StringArray") == 0) return "String[]";
     else if(strcmp(type, "Void") == 0) return "void";
     else return type;
-}
+}*/
 
 void print_params(Param *params){
     Param *aux;
     for(aux=params; aux; aux = aux->next){
-        printf("%s", convert_type(aux->param_type));
+        printf("%s", aux->param_type);
         if (aux->next) printf(",");
     }
 }
@@ -226,20 +231,20 @@ void show_table(){
         if (aux->params) {
             printf("%s\t(", aux->name);
             print_params(aux->params);
-            printf(")\t%s\n", convert_type(aux->type));
+            printf(")\t%s\n", aux->type);
         }
         else
-            printf("%s\t%s\n", aux->name, convert_type(aux->type));
+            printf("%s\t\t%s\n", aux->name, aux->type);
     }
     for(aux_symtab = symtab_list; aux_symtab; aux_symtab = aux_symtab->next){
         printf("\n===== Method %s(", aux_symtab->scope);
         print_params(aux_symtab->params);
         printf(") Symbol Table =====\n"); 
-        printf("return\t\t%s\n", convert_type(aux_symtab->type));
+        printf("return\t\t%s\n", aux_symtab->type);
 		for(aux_param = aux_symtab->params; aux_param; aux_param= aux_param->next)
-			printf("%s\t%s\tparam\n", aux_param->name, convert_type(aux_param->param_type));
+			printf("%s\t\t%s\tparam\n", aux_param->name, aux_param->param_type);
         for (aux_symbols=aux_symtab->symbols; aux_symbols; aux_symbols = aux_symbols->next)
-            printf("%s\t\t%s\n", aux_symbols->name, convert_type(aux_symbols->type));
+            printf("%s\t\t%s\n", aux_symbols->name, aux_symbols->type);
     }
 	printf("\n");	
 }

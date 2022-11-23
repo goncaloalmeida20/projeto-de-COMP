@@ -150,6 +150,7 @@ void update_vars(char *value){
 	line_yacc = line; 
 	col += yyleng;
     if(flag_yacc >= 0) {
+        //printf("adasdsada %s %d %d\n", yytext, line_yacc, col_yacc);
         yylval.tk = (Tk *) malloc(sizeof(Tk));
         yylval.tk->value = NULL;
         if (value)

@@ -10,15 +10,17 @@
 
 Node* root = NULL;
 
-Node* create_node(char * type, char * value, int line, int col) {
+Node* create_node(char *type, char *value, int line, int col, char *true_type) {
     Node* node = (Node*) malloc(sizeof(Node));
     if (node == NULL) {printf("ERRO MEMÓRIA\n"); exit(0);} // No memory
 
-    node->semantic_type = NULL;
+    node->print_true_type = 0;
     node->params = NULL;
     node->type = strdup(type);
     if (value == NULL) node->value = NULL;
     else node->value = strdup(value);
+    if(true_type) node->true_type = strdup(true_type);
+    else node->true_type = NULL;
         
     node->bro = NULL;
 	node->son = NULL;
@@ -51,11 +53,11 @@ void print_tree(Node *n, int level){
     
     for(i = 0; i < level * 2; i++) putchar('.');
     if (n->value == NULL){
-        if(n->semantic_type) printf("%s - %s\n", n->type, n->semantic_type);
+        if(n->print_true_type) printf("%s - %s\n", n->type, n->true_type);
         else printf("%s\n", n->type);
     } 
     else{
-        if(n->semantic_type) printf("%s(%s) - %s\n", n->type, n->value, n->semantic_type);
+        if(n->print_true_type) printf("%s(%s) - %s\n", n->type, n->value, n->true_type);
         else printf("%s(%s)\n", n->type, n->value);
     }
     //else printf("%s(%s) %d %d\n", n->type, n->value, n->line, n->col);
@@ -74,19 +76,19 @@ void free_tree(Node* n){
 }
 
 Node* add_if(Node *expr, Node *statement_if, Node *statement_else, int line, int col){
-    if(statement_if == NULL) statement_if = create_node("Block", NULL, 0, 0);
-    if(statement_else == NULL) statement_else = create_node("Block", NULL, 0, 0);
-    return add_son(create_node("If", NULL, line, col), add_bro(expr, add_bro(statement_if,statement_else)));
+    if(statement_if == NULL) statement_if = create_node("Block", NULL, 0, 0, NULL);
+    if(statement_else == NULL) statement_else = create_node("Block", NULL, 0, 0, NULL);
+    return add_son(create_node("If", NULL, line, col, "if"), add_bro(expr, add_bro(statement_if,statement_else)));
 }
 
 Node* add_while(Node *expr, Node *statement_while, int line, int col){
-    if(statement_while == NULL) statement_while = create_node("Block", NULL, 0, 0);
-    return add_son(create_node("While", NULL, line, col), add_bro(expr, statement_while));
+    if(statement_while == NULL) statement_while = create_node("Block", NULL, 0, 0, NULL);
+    return add_son(create_node("While", NULL, line, col, "while"), add_bro(expr, statement_while));
 }
 
 Node* create_blocks(Node *statement1, Node* statement2){
     if(statement1 == NULL && statement2 == NULL) return NULL;
     if(statement1 == NULL) return statement2;
     if(statement2 == NULL) return statement1;
-    return add_son(create_node("Block", NULL, 0, 0), add_bro(statement1, statement2));
+    return add_son(create_node("Block", NULL, 0, 0, NULL), add_bro(statement1, statement2));
 }

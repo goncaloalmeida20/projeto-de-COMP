@@ -20,7 +20,8 @@ typedef struct _tk{
 typedef struct node{
 	char *type;
 	char *value;
-	char *semantic_type;
+	char *true_type;
+	int print_true_type;
 	Param *params;
 	struct node * son;
     struct node * bro;
@@ -30,7 +31,7 @@ typedef struct node{
 
 extern Node* root;
 
-Node* create_node(char *type, char *value, int line, int col);
+Node* create_node(char *type, char *value, int line, int col, char *true_type);
 Node* add_son(Node *fat, Node *son);
 Node* add_bro(Node *n, Node *bro);
 
