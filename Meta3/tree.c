@@ -74,19 +74,19 @@ void free_tree(Node* n){
 }
 
 Node* add_if(Node *expr, Node *statement_if, Node *statement_else, int line, int col){
-    if(statement_if == NULL) statement_if = create_node("Block", NULL, line, col);
-    if(statement_else == NULL) statement_else = create_node("Block", NULL, line, col);
+    if(statement_if == NULL) statement_if = create_node("Block", NULL, 0, 0);
+    if(statement_else == NULL) statement_else = create_node("Block", NULL, 0, 0);
     return add_son(create_node("If", NULL, line, col), add_bro(expr, add_bro(statement_if,statement_else)));
 }
 
 Node* add_while(Node *expr, Node *statement_while, int line, int col){
-    if(statement_while == NULL) statement_while = create_node("Block", NULL, line, col);
+    if(statement_while == NULL) statement_while = create_node("Block", NULL, 0, 0);
     return add_son(create_node("While", NULL, line, col), add_bro(expr, statement_while));
 }
 
-Node* create_blocks(Node *statement1, Node* statement2, int line, int col){
+Node* create_blocks(Node *statement1, Node* statement2){
     if(statement1 == NULL && statement2 == NULL) return NULL;
     if(statement1 == NULL) return statement2;
     if(statement2 == NULL) return statement1;
-    return add_son(create_node("Block", NULL, line, col), add_bro(statement1, statement2));
+    return add_son(create_node("Block", NULL, 0, 0), add_bro(statement1, statement2));
 }

@@ -11,11 +11,11 @@
 
 #define TYPE_SIZE 100
 
-typedef struct _token{
-	char *name;
+typedef struct _tk{
+	char *value;
 	int line;
     int col;
-} Token;
+} Tk;
 
 typedef struct node{
 	char *type;
@@ -37,7 +37,7 @@ Node* add_bro(Node *n, Node *bro);
 Node* add_if(Node *expr, Node *statement_if, Node *statement_else, int line, int col);
 Node* add_while(Node *expr, Node *statement_while, int line, int col);
 
-Node* create_blocks(Node *statement1, Node* statement2, int line, int col);
+Node* create_blocks(Node *statement1, Node* statement2);
 
 void print_tree(Node *n, int level);
 void free_tree(Node *n);
