@@ -39,8 +39,8 @@
 %type <node> MethodFieldDecl MethodDecl FieldDecl FieldCommaId Type MethodHeader MethodBody FormalParams StatementVarDecl CommaTypeIds VarDecl VarCommaId Statement MultipleStatements MethodInvocation CommaExpr Assignment ParseArgs Expr ExprNoAssign
 %%
 
-Program: CLASS ID LBRACE RBRACE                     {root = create_node("Program", NULL, $2->line, $2->col); add_son(root, create_node("Id",$2, $2->line, $2->col));}                   
-    | CLASS ID LBRACE MethodFieldDecl RBRACE        {root = create_node("Program", NULL, $2->line, $2->col); add_son(root, add_bro(create_node("Id",$2, $2->line, $2->col), $4));}   
+Program: CLASS ID LBRACE RBRACE                     {root = create_node("Program", NULL, 0, 0); add_son(root, create_node("Id",$2->value, $2->line, $2->col));}                   
+    | CLASS ID LBRACE MethodFieldDecl RBRACE        {root = create_node("Program", NULL, 0, 0); add_son(root, add_bro(create_node("Id",$2->value, $2->line, $2->col), $4));}   
     | CLASS ID LBRACE RBRACE error                  {yacc_error = 1;}                   
     | CLASS ID LBRACE MethodFieldDecl RBRACE error  {yacc_error = 1;}   
     ;
