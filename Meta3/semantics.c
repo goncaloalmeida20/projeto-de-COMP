@@ -6,16 +6,13 @@
 char *scope = NULL;
 char *return_type = NULL;
 
-/*
-mapeia tipos segundo as seguintes regras:
-double -> 1
-int -> 0
-outro -> -1
-*/
-int map_int_double(char *type){
-    if(strcmp(type, "int") == 0) return 0;
-    if(strcmp(type, "double") == 0) return 1;
-    return -1;
+void error_ambiguous_func(Node *n){
+    printf("Line %d, col %d: Reference to method %s(", n->line, n->col, n->value);
+    for(Param *aux = n->params; aux; aux = aux->next){
+        if(aux == n->params) printf("%s", aux->param_type);
+        else printf(",%s", aux->param_type);
+    }
+    printf(") is ambiguous\n");
 }
 
 void error_incompatible_type(Node *n, char *type){
@@ -39,7 +36,6 @@ void declare_method(Node *node){
         Node *method_header = node->son, *method_type = method_header->son, *method_id = method_type->bro;
         Node *method_params = method_id->bro;
         Param *params = NULL;
-        printf("ajdosjdsaidjsa\n");
         for(Node *aux = method_params->son; aux; aux = aux->bro){
             params = add_param(params, aux->son->bro->value, aux->son->type);
         }
@@ -126,9 +122,11 @@ char* check(Node *node){
             son_type = check(aux);
             params = add_param(params, NULL, aux->type);
         }
-        TableElement *func = search_el_func(func_id, params);
+        int ambiguous = 0;
+        TableElement *func = search_el_func(func_id, params, &ambiguous);
         if(!func){
-            error_symbol_not_found(node->son);
+            if(ambiguous) error_ambiguous_func(node->son);
+            else error_symbol_not_found(node->son);
             node->semantic_type = strdup("undef");
             return "undef";
         }
@@ -141,6 +139,14 @@ char* check(Node *node){
             error_incompatible_type(node, son_type);
         }
         return NULL;
+    }
+    if(strcmp(node->type, "ParseArgs") == 0){
+        char *son_type = check(node->son);
+        char *other_son_type = check(node->son->bro);
+        if(!(strcmp(son_type, "String[]") == 0 && strcmp(other_son_type, "int") == 0)){
+            error_operator_cannot_be_applied(node, son_type, other_son_type);
+        }
+        return "int";
     }
     if(strcmp(node->type, "Assign") == 0){
         char *son_type = check(node->son);
@@ -224,14 +230,6 @@ char* check(Node *node){
             error_operator_cannot_be_applied(node, son_type, other_son_type);
         }
         node->semantic_type = strdup("int");
-        return "int";
-    }
-    if(strcmp(node->type, "ParseArgs") == 0){
-        char *son_type = check(node->son);
-        char *other_son_type = check(node->son->bro);
-        if(!(strcmp(son_type, "String[]") == 0 && strcmp(other_son_type, "int") == 0)){
-            error_operator_cannot_be_applied(node, son_type, other_son_type);
-        }
         return "int";
     }
     if(strcmp(node->type, "DecLit") == 0){

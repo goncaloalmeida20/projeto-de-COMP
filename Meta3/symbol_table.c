@@ -7,6 +7,17 @@
 SymTab *global_symtab = NULL;
 SymTab *symtab_list = NULL;
 
+/*
+mapeia tipos segundo as seguintes regras:
+double -> 1
+int -> 0
+outro -> -1
+*/
+int map_int_double(char *type){
+    if(strcmp(type, "int") == 0) return 0;
+    if(strcmp(type, "double") == 0) return 1;
+    return -1;
+}
 
 SymTab* search_symtab(char *scope){	
 	if(scope == NULL) return global_symtab;
@@ -62,19 +73,44 @@ Param* add_param(Param *params, char *name, char *type){
 	return params;
 }
 
-int compare_params(Param *pt1,Param *pt2){
-	Param *aux1 = pt1, *aux2 = pt2;
-	for(; aux1 && aux2; aux1 = aux1->next, aux2=aux2->next)
-		if(strcmp(aux1->param_type, aux2->param_type) != 0) return 0;
-	if(!aux1 && !aux2) return 1;
+int compare_params(Param *p1,Param *p2){
+	Param *aux1 = p1, *aux2 = p2;
+	int return_promoted = 1; //1-os parâmetros coincidem, 2-há ints em parâmetros double
+	int mapped_p1_type, mapped_p2_type;
+	for(; aux1 && aux2; aux1 = aux1->next, aux2=aux2->next){
+		if(strcmp(aux1->param_type, aux2->param_type) == 0) continue;
+		mapped_p1_type = map_int_double(aux1->param_type);
+		mapped_p2_type = map_int_double(aux2->param_type);
+		if(mapped_p1_type >= 0 && mapped_p2_type >= 0 && mapped_p1_type < mapped_p2_type && return_promoted == 1)
+			return_promoted = 2;
+		else return 0;
+	}
+	if(!aux1 && !aux2) return return_promoted;
 	return 0;
 }
 
-TableElement *search_el_func(char *name, Param *params){
-	for(TableElement *aux=global_symtab->symbols; aux; aux=aux->next)
-		if(aux->params && strcmp(aux->name, name)==0 && compare_params(params, aux->params))
-			return aux;
-	return NULL;
+TableElement *search_el_func(char *name, Param *params, int *ambiguous){
+	if(ambiguous) *ambiguous = 0;
+	int ambiguous_count = 0;
+	TableElement *promoted_int_func = NULL;
+	for(TableElement *aux=global_symtab->symbols; aux; aux=aux->next){
+		if(aux->params && strcmp(aux->name, name)==0){
+			int comparison = compare_params(params, aux->params);
+			if(comparison == 1) return aux;
+			if(ambiguous && comparison == 2){
+				printf("DJSAOAJSDADAJ\n");
+				if(ambiguous_count == 0){
+					promoted_int_func = aux;
+					ambiguous_count++;
+				}
+				else{
+					*ambiguous = 1;
+					return NULL;
+				}
+			} 
+		}
+	}
+	return promoted_int_func;
 }
 
 int insert_el(char *name, char *type, char *scope){
@@ -128,7 +164,7 @@ int insert_symtab(char *name, char *type, Param *params){
 }
 
 int insert_el_func(char *name, char *type, Param *params){
-	if(search_el_func(name, params)) return 0;
+	if(search_el_func(name, params, NULL)) return 0;
 
 	TableElement *newSymbol=(TableElement*) malloc(sizeof(TableElement));
 	newSymbol->name = strdup(name);
