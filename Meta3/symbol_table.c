@@ -14,8 +14,8 @@ int -> 0
 outro -> -1
 */
 int map_int_double(char *type){
-    if(strcmp(type, "int") == 0) return 0;
-    if(strcmp(type, "double") == 0) return 1;
+    if(strcmp(type, "int") == 0 || strcmp(type, "Int") == 0 || strcmp(type, "DecLit") == 0) return 0;
+    if(strcmp(type, "double") == 0 || strcmp(type, "Double") == 0 || strcmp(type, "RealLit") == 0) return 1;
     return -1;
 }
 
@@ -81,8 +81,10 @@ int compare_params(Param *p1,Param *p2){
 		if(strcmp(aux1->param_type, aux2->param_type) == 0) continue;
 		mapped_p1_type = map_int_double(aux1->param_type);
 		mapped_p2_type = map_int_double(aux2->param_type);
-		if(mapped_p1_type >= 0 && mapped_p2_type >= 0 && mapped_p1_type < mapped_p2_type && return_promoted == 1)
+		if(mapped_p1_type >= 0 && mapped_p2_type >= 0 && mapped_p1_type <= mapped_p2_type){
 			return_promoted = 2;
+		}
+			
 		else return 0;
 	}
 	if(!aux1 && !aux2) return return_promoted;
@@ -98,7 +100,6 @@ TableElement *search_el_func(char *name, Param *params, int *ambiguous){
 			int comparison = compare_params(params, aux->params);
 			if(comparison == 1) return aux;
 			if(ambiguous && comparison == 2){
-				printf("DJSAOAJSDADAJ\n");
 				if(ambiguous_count == 0){
 					promoted_int_func = aux;
 					ambiguous_count++;
