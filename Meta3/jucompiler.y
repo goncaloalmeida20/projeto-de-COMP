@@ -53,15 +53,15 @@ MethodFieldDecl: MethodDecl                         {$$=$1;}
     | SEMICOLON MethodFieldDecl                     {$$=$2;}
     ;
 
-MethodDecl: PUBLIC STATIC MethodHeader MethodBody   {$$=add_son(create_node("MethodDecl", NULL, $2->line, $2->col), add_bro($3, $4));}
+MethodDecl: PUBLIC STATIC MethodHeader MethodBody   {$$=add_son(create_node("MethodDecl", NULL, 0, 0), add_bro($3, $4));}
 
-FieldDecl: PUBLIC STATIC Type ID SEMICOLON          {$$=add_son(create_node("FieldDecl",NULL, $2->line, $2->col), add_bro($3, create_node("Id", $4, $2->line, $2->col)));} 
-    | PUBLIC STATIC Type ID FieldCommaId SEMICOLON  {$$=add_bro(add_son(create_node("FieldDecl",NULL, $2->line, $2->col), add_bro($3, create_node("Id", $4, $2->line, $2->col))), $5);}   
+FieldDecl: PUBLIC STATIC Type ID SEMICOLON          {$$=add_son(create_node("FieldDecl",NULL, 0, 0), add_bro($3, create_node("Id", $4->value, $4->line, $4->col)));} 
+    | PUBLIC STATIC Type ID FieldCommaId SEMICOLON  {$$=add_bro(add_son(create_node("FieldDecl",NULL, 0, 0), add_bro($3, create_node("Id", $4->value, $4->line, $4->col))), $5);}   
     | error SEMICOLON                               {yacc_error = 1; $$=NULL;}
     ;
 
-FieldCommaId: COMMA ID                              {$$=add_son(create_node("FieldDecl",NULL, $2->line, $2->col), add_bro(create_node(current_type, NULL, $2->line, $2->col), create_node("Id", $2, $2->line, $2->col)));}   
-    | COMMA ID FieldCommaId                         {$$=add_bro(add_son(create_node("FieldDecl",NULL, $2->line, $2->col), add_bro(create_node(current_type, NULL, $2->line, $2->col), create_node("Id", $2, $2->line, $2->col))), $3);}   
+FieldCommaId: COMMA ID                              {$$=add_son(create_node("FieldDecl",NULL, 0, 0), add_bro(create_node(current_type, NULL, $2->line, $2->col), create_node("Id", $2->value, $2->line, $2->col)));}   
+    | COMMA ID FieldCommaId                         {$$=add_bro(add_son(create_node("FieldDecl",NULL, 0, 0), add_bro(create_node(current_type, NULL, $2->line, $2->col), create_node("Id", $2->value, $2->line, $2->col))), $3);}   
     ;
 
 Type: BOOL                                          {$$=create_node("Bool", NULL, $1->line, $1->col); strcpy(current_type, "Bool"); }
@@ -69,10 +69,10 @@ Type: BOOL                                          {$$=create_node("Bool", NULL
     | DOUBLE                                        {$$=create_node("Double", NULL, $1->line, $1->col); strcpy(current_type, "Double"); }
     ;
 
-MethodHeader: Type ID LPAR RPAR                     {$$=add_son(create_node("MethodHeader", NULL, 0, 0), add_bro($1, add_bro(create_node("Id",$2, $2->line, $2->col), create_node("MethodParams", NULL, $2->line, $2->col))));}
-    | Type ID LPAR FormalParams RPAR                {$$=add_son(create_node("MethodHeader", NULL, 0, 0), add_bro($1, add_bro(create_node("Id",$2, $2->line, $2->col), add_son(create_node("MethodParams", NULL, $2->line, $2->col),$4))));}
-    | VOID ID LPAR RPAR                             {$$=add_son(create_node("MethodHeader", NULL, 0, 0), add_bro(create_node("Void", NULL, $2->line, $2->col), add_bro(create_node("Id",$2, $2->line, $2->col), create_node("MethodParams", NULL, $2->line, $2->col))));}
-    | VOID ID LPAR FormalParams RPAR                {$$=add_son(create_node("MethodHeader", NULL, 0, 0), add_bro(create_node("Void", NULL, $2->line, $2->col), add_bro(create_node("Id",$2, $2->line, $2->col), add_son(create_node("MethodParams", NULL, $2->line, $2->col),$4))));}
+MethodHeader: Type ID LPAR RPAR                     {$$=add_son(create_node("MethodHeader", NULL, 0, 0), add_bro($1, add_bro(create_node("Id",$2->value, $2->line, $2->col), create_node("MethodParams", NULL, 0, 0))));}
+    | Type ID LPAR FormalParams RPAR                {$$=add_son(create_node("MethodHeader", NULL, 0, 0), add_bro($1, add_bro(create_node("Id",$2->value, $2->line, $2->col), add_son(create_node("MethodParams", NULL, 0, 0),$4))));}
+    | VOID ID LPAR RPAR                             {$$=add_son(create_node("MethodHeader", NULL, 0, 0), add_bro(create_node("Void", NULL, $2->line, $2->col), add_bro(create_node("Id",$2->value, $2->line, $2->col), create_node("MethodParams", NULL, 0, 0))));}
+    | VOID ID LPAR FormalParams RPAR                {$$=add_son(create_node("MethodHeader", NULL, 0, 0), add_bro(create_node("Void", NULL, $2->line, $2->col), add_bro(create_node("Id",$2->value, $2->line, $2->col), add_son(create_node("MethodParams", NULL, 0, 0),$4))));}
     ;
 
 FormalParams: Type ID                               {$$=add_son(create_node("ParamDecl", NULL, 0, 0), add_bro($1, create_node("Id", $2->value, $2->line, $2->col)));}
