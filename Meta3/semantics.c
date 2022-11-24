@@ -8,10 +8,7 @@ char *return_type = NULL;
 
 void error_ambiguous_func(Node *n){
     printf("Line %d, col %d: Reference to method %s(", n->line, n->col, n->value);
-    for(Param *aux = n->params; aux; aux = aux->next){
-        if(aux == n->params) printf("%s", aux->param_type);
-        else printf(",%s", aux->param_type);
-    }
+    print_params(n->params);
     printf(") is ambiguous\n");
 }
 
@@ -20,7 +17,13 @@ void error_incompatible_type(Node *n, char *type){
 }
 
 void error_symbol_not_found(Node *n){
-    printf("Line %d, col %d: Cannot find symbol %s\n", n->line, n->col, n->value);
+    printf("Line %d, col %d: Cannot find symbol %s", n->line, n->col, n->value);
+    if(n->params){
+        printf("(");
+        print_params(n->params);
+        printf(")\n");
+    } 
+    else printf("\n");
 }
 
 void error_already_defined(Node *n){
@@ -109,15 +112,15 @@ char* check(Node *node){
         if(strcmp(son_type, "void") == 0){
             error_incompatible_type(node, son_type);
         }
-        else if(strcmp(son_type, return_type) == 0){
+        else if(strcmp(son_type, return_type) != 0){
             error_incompatible_type(node, son_type);
         }
         node->true_type = strdup(son_type);
-        node->print_true_type = 1;
         return NULL;
     }
     if(strcmp(node->type, "Call") == 0){
-        char *son_type, *func_id = node->son->value;
+        Node *func_id_node = node->son;
+        char *son_type, *func_id = func_id_node->value;
         Param *params = NULL;
         for(Node *aux = node->son->bro; aux; aux = aux->bro){
             son_type = check(aux);
@@ -126,12 +129,19 @@ char* check(Node *node){
         int ambiguous = 0;
         TableElement *func = search_el_func(func_id, params, &ambiguous);
         if(!func){
+            func_id_node->params = params;
             if(ambiguous) error_ambiguous_func(node->son);
             else error_symbol_not_found(node->son);
+            func_id_node->true_type = strdup("undef");
+            func_id_node->print_true_type = 1;
+            func_id_node->params = NULL;
             node->true_type = strdup("undef");
             node->print_true_type = 1;
             return "undef";
         }
+        func_id_node->true_type = NULL;
+        func_id_node->print_true_type = 1;
+        func_id_node->params = param_dup(func->params);
         node->true_type = strdup(func->type);
         node->print_true_type = 1;
         return node->true_type;
@@ -156,7 +166,7 @@ char* check(Node *node){
         char *other_son_type = check(node->son->bro);
         int mapped_son_type = map_int_double(son_type);
         int mapped_other_son_type = map_int_double(other_son_type);
-        if(!(strcmp(son_type, other_son_type) == 0) && !(mapped_son_type >= 0 && mapped_other_son_type >= 0 && mapped_son_type < mapped_other_son_type)){
+        if(!(strcmp(son_type, other_son_type) == 0) && !(mapped_son_type >= 0 && mapped_other_son_type >= 0 && mapped_son_type >= mapped_other_son_type)){
             error_operator_cannot_be_applied(node, son_type, other_son_type);
         }
         node->true_type = strdup(son_type);

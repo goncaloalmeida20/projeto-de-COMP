@@ -53,11 +53,23 @@ void print_tree(Node *n, int level){
     
     for(i = 0; i < level * 2; i++) putchar('.');
     if (n->value == NULL){
-        if(n->print_true_type) printf("%s - %s\n", n->type, n->true_type);
-        else printf("%s\n", n->type);
+        if(n->print_true_type){
+            if(n->params){
+                printf("%s - (", n->type);
+                print_params(n->params);
+                printf(")\n");
+            }else printf("%s - %s\n", n->type, n->true_type);
+        } else printf("%s\n", n->type);
     } 
     else{
-        if(n->print_true_type) printf("%s(%s) - %s\n", n->type, n->value, n->true_type);
+        if(n->print_true_type){
+            if(n->params){
+                printf("%s(%s) - (", n->type, n->value);
+                print_params(n->params);
+                printf(")\n");
+            }
+            else printf("%s(%s) - %s\n", n->type, n->value, n->true_type);
+        } 
         else printf("%s(%s)\n", n->type, n->value);
     }
     //else printf("%s(%s) %d %d\n", n->type, n->value, n->line, n->col);

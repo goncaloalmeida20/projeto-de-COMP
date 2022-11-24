@@ -57,6 +57,26 @@ char *search_el_scope(char *name, char *scope){
 	return search_el(name, global_symtab);
 }
 
+Param* param_dup(Param *params){
+	Param *previous = NULL, *param_list = NULL;
+	for(Param *aux = params; aux; aux = aux->next){
+		Param *newParam = (Param *)malloc(sizeof(Param));
+		if(aux->name) newParam->name = strdup(aux->name);
+		else newParam->name = NULL;
+		newParam->param_type = strdup(aux->param_type);
+		newParam->next = NULL;
+		if(param_list){
+			previous->next = newParam;
+			previous = newParam;
+		}
+		else{
+			param_list = newParam;
+			previous = newParam;
+		}
+	}
+	return param_list;
+}
+
 Param* add_param(Param *params, char *name, char *type){
 	Param *new_param = (Param *)malloc(sizeof(Param));
 	if(!new_param){
@@ -85,10 +105,10 @@ int compare_params(Param *p1,Param *p2){
 		if(strcmp(aux1->param_type, aux2->param_type) == 0) continue;
 		mapped_p1_type = map_int_double(aux1->param_type);
 		mapped_p2_type = map_int_double(aux2->param_type);
-		if(mapped_p1_type >= 0 && mapped_p2_type >= 0 && mapped_p1_type <= mapped_p2_type){
+		//printf("aaaa %s %d %s %d\n", aux1->name, mapped_p1_type, aux2->name, mapped_p2_type);
+		if(mapped_p1_type >= 0 && mapped_p2_type >= 0 && mapped_p1_type >= mapped_p2_type){
 			return_promoted = 2;
 		}
-			
 		else return 0;
 	}
 	if(!aux1 && !aux2) return return_promoted;
@@ -101,7 +121,7 @@ TableElement *search_el_func(char *name, Param *params, int *ambiguous){
 	TableElement *promoted_int_func = NULL;
 	for(TableElement *aux=global_symtab->symbols; aux; aux=aux->next){
 		if(aux->params && strcmp(aux->name, name)==0){
-			int comparison = compare_params(params, aux->params);
+			int comparison = compare_params(aux->params, params);
 			if(comparison == 1) return aux;
 			if(ambiguous && comparison == 2){
 				if(ambiguous_count == 0){
