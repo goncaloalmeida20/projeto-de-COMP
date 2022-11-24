@@ -121,6 +121,8 @@ TableElement *search_el_func(char *name, Param *params, int *ambiguous){
 	TableElement *promoted_int_func = NULL;
 	for(TableElement *aux=global_symtab->symbols; aux; aux=aux->next){
 		if(aux->params && strcmp(aux->name, name)==0){
+			if(!params)
+				params = add_param(NULL, NULL, "");
 			int comparison = compare_params(aux->params, params);
 			if(comparison == 1) return aux;
 			if(ambiguous && comparison == 2){

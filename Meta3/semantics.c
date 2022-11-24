@@ -159,6 +159,8 @@ char* check(Node *node){
         if(!(strcmp(son_type, "String[]") == 0 && strcmp(other_son_type, "int") == 0)){
             error_operator_cannot_be_applied(node, son_type, other_son_type);
         }
+        node->true_type = strdup("int");
+        node->print_true_type = 1;
         return "int";
     }
     if(strcmp(node->type, "Assign") == 0){
@@ -216,7 +218,7 @@ char* check(Node *node){
     if(strcmp(node->type, "Eq") == 0 || strcmp(node->type, "Ne") == 0 || strcmp(node->type, "Lt") == 0 || strcmp(node->type, "Gt") == 0 || strcmp(node->type, "Le") == 0 || strcmp(node->type, "Ge") == 0){
         char *son_type = check(node->son);
         char *other_son_type = check(node->son->bro);
-        if(!(strcmp(son_type, other_son_type) == 0)){
+        if(!(strcmp(son_type, other_son_type) == 0 || map_int_double(son_type) + map_int_double(other_son_type) == 1)){
             error_operator_cannot_be_applied(node, son_type, other_son_type);
         }
         node->true_type = strdup("boolean");
