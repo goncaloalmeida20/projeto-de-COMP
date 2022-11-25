@@ -27,7 +27,7 @@ extern SymTab *symtab_list;
 
 int map_int_double(char *type);
 Param* param_dup(Param *params);
-Param* add_param(Param *params, char *name, char *type);
+Param* add_param(Param *params, char *name, char *type, int *already_exists);
 char *search_el_scope(char *name, char *scope);
 TableElement *search_el_func(char *name, Param *params, int *ambiguous);
 int insert_el(char *name, char *type, char *scope);

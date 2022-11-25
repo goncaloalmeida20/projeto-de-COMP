@@ -137,10 +137,26 @@ int main(int argc, char *argv[]){
             yyparse();
             if(!yacc_error){
                 semantics_check();
+                show_table();
                 print_tree(root, 0);
             }
             free_tree(root);
+        }else{
+            flag_yacc = 1;
+            yyparse();
+            if(!yacc_error){
+                semantics_check();
+            }
+            free_tree(root);
         }
+    }
+    else{
+        flag_yacc = 1;
+        yyparse();
+        if(!yacc_error){
+            semantics_check();
+        }
+        free_tree(root);
     }
     return 0;
 }

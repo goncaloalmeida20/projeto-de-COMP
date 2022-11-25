@@ -77,7 +77,13 @@ Param* param_dup(Param *params){
 	return param_list;
 }
 
-Param* add_param(Param *params, char *name, char *type){
+Param* add_param(Param *params, char *name, char *type, int *already_exists){
+	if(already_exists) *already_exists = 0;
+	if(name){
+		for(Param *p = params; p; p = p->next)
+			if(strcmp(p->name, name) == 0 && already_exists) *already_exists = 1;
+	}
+
 	Param *new_param = (Param *)malloc(sizeof(Param));
 	if(!new_param){
 		printf("ERRO DE MALLOC ADD_PARAMS\n");
@@ -122,7 +128,7 @@ TableElement *search_el_func(char *name, Param *params, int *ambiguous){
 	for(TableElement *aux=global_symtab->symbols; aux; aux=aux->next){
 		if(aux->params && strcmp(aux->name, name)==0){
 			if(!params)
-				params = add_param(NULL, NULL, "");
+				params = add_param(NULL, NULL, "", NULL);
 			int comparison = compare_params(aux->params, params);
 			if(comparison == 1) return aux;
 			if(ambiguous && comparison == 2){
@@ -196,7 +202,7 @@ int insert_el_func(char *name, char *type, Param *params){
 	TableElement *newSymbol=(TableElement*) malloc(sizeof(TableElement));
 	newSymbol->name = strdup(name);
 	if(!params){
-		newSymbol->params = add_param(NULL, NULL, "");
+		newSymbol->params = add_param(NULL, NULL, "", NULL);
 	}
 	else newSymbol->params = params;
 	newSymbol->type = strdup(type);
