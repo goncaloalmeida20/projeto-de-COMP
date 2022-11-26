@@ -1,6 +1,6 @@
-#include<stdlib.h>
-#include<string.h>
-#include<stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
 #include "symbol_table.h"
 #include "tree.h"
 
@@ -89,6 +89,7 @@ Param* param_dup(Param *params){
 		if(aux->name) newParam->name = strdup(aux->name);
 		else newParam->name = NULL;
 		newParam->param_type = strdup(aux->param_type);
+		newParam->valid = aux->valid;
 		newParam->next = NULL;
 		if(param_list){
 			previous->next = newParam;
@@ -102,11 +103,11 @@ Param* param_dup(Param *params){
 	return param_list;
 }
 
-Param* add_param(Param *params, char *name, char *type, int *already_exists){
-	if(already_exists) *already_exists = 0;
-	if(name){
+Param* add_param(Param *params, char *name, char *type, int *error){
+	if(error) *error = 0;
+	if(name && error){
 		for(Param *p = params; p; p = p->next)
-			if(strcmp(p->name, name) == 0 && already_exists) *already_exists = 1;
+			if(strcmp(p->name, name) == 0) *error = 1;
 	}
 
 	Param *new_param = (Param *)malloc(sizeof(Param));
@@ -114,9 +115,14 @@ Param* add_param(Param *params, char *name, char *type, int *already_exists){
 		printf("ERRO DE MALLOC ADD_PARAMS\n");
 		return NULL;
 	}
+
+	if(error && name && strcmp(name, "_") == 0) *error = 2;
+
 	if(!name) new_param->name = NULL;
 	else new_param->name = strdup(name);
 	new_param->param_type = strdup(type);
+	if(error && *error) new_param->valid = !(*error);
+	else new_param->valid = 1;
 	new_param->next = NULL;
 
 	if(!params) return new_param;
@@ -143,13 +149,14 @@ TableElement *search_el_func(char *name, Param *params, int *ambiguous){
 					promoted_int_func = aux;
 					ambiguous_count++;
 				}
-				else{
+				else if(ambiguous_count == 1){
 					*ambiguous = 1;
-					return NULL;
+					ambiguous_count++;
 				}
 			} 
 		}
 	}
+	if(ambiguous_count > 1) return NULL;
 	return promoted_int_func;
 }
 
@@ -159,9 +166,8 @@ int insert_el(char *name, char *type, char *scope, Param *params){
 	if(!symtab){
 		return 0;
 	}
-
-	if(search_el(name, symtab)) return 0;
 	
+	if(search_el(name, symtab)) return 0;
 	TableElement *previous, *newSymbol=(TableElement*) malloc(sizeof(TableElement));
 
 	newSymbol->name = strdup(name);
@@ -277,7 +283,7 @@ void show_table(){
         printf(") Symbol Table =====\n"); 
         printf("return\t\t%s\n", aux_symtab->type);
 		for(aux_param = aux_symtab->params; aux_param; aux_param= aux_param->next)
-			printf("%s\t\t%s\tparam\n", aux_param->name, aux_param->param_type);
+			if(aux_param->valid) printf("%s\t\t%s\tparam\n", aux_param->name, aux_param->param_type);
         for (aux_symbols=aux_symtab->symbols; aux_symbols; aux_symbols = aux_symbols->next)
             printf("%s\t\t%s\n", aux_symbols->name, aux_symbols->type);
     }

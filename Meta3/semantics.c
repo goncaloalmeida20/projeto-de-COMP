@@ -51,18 +51,55 @@ void error_operator_cannot_be_applied(char *operator, char *type1, char *type2, 
     else printf("Line %d, col %d: Operator %s cannot be applied to type %s\n", pos->line, pos->col, operator, type1);
 }
 
+double power(double a, long b){
+    if(b < 0) return 1/power(a, -b);
+    double result = 1;
+    for(long i = 0; i < b; i++) result *= a;
+    return result;
+}
+
+double convert_num(char * value) {
+    int len = strlen(value), underscore = 1, cont = 0, found_e = 0, minus = len;
+    char val[len];
+    strcpy(val, value);
+    char exp[len];
+    while(underscore == 1){
+        underscore = 0;
+        for(int i = 1; i < len; i++){
+            if(val[i] == '_') underscore = 1;
+            if(underscore == 1) val[i] = val[i+1];
+            if(val[i+1] == 'E'){minus=i+1;};
+        }
+    }
+    
+    for(int i = 0; val[i] != 0; i++){
+        if(found_e == 1) exp[cont++] = val[i];
+        if (val[i] == 'E') found_e = 1;
+    }
+    val[minus] = 0;
+    return atof(val) * (double)power(10,atol(exp));
+}
+
 void declare_method(Node *node){
         Node *method_header = node->son, *method_type = method_header->son, *method_id = method_type->bro;
         Node *method_params = method_id->bro;
+        if(strcmp(method_id->value, "_") == 0){
+            error_underscore_reserved(node);
+            return;
+        }
         Param *params = NULL;
-        int already_exists = 0;
+        int error = 0;
         for(Node *aux = method_params->son; aux; aux = aux->bro){
-            params = add_param(params, aux->son->bro->value, aux->son->true_type, &already_exists);
-            if(already_exists){
+            params = add_param(params, aux->son->bro->value, aux->son->true_type, &error);
+            if(error == 1){
                 error_already_defined(NULL, aux->son->bro->value, aux->son->bro);
+            }
+            else if(error == 2){
+                error_underscore_reserved(aux->son->bro);
             }
         }
         if(!insert_el_func(method_id->value, method_type->true_type, params)){
+            if(!params) params = add_param(NULL, NULL, "", NULL);
             error_already_defined(params, method_id->value, method_id);
             node->check_node = 0;
         }
@@ -72,6 +109,10 @@ void declare_method(Node *node){
 void declare_var(Node *node){
         Node *type_node = node->son;
         Node *id_node = type_node->bro;
+        if(strcmp(id_node->value, "_") == 0){
+            error_underscore_reserved(id_node);
+            return;
+        }
         if(!insert_el(id_node->value, type_node->true_type, scope, curr_params))
             error_already_defined(NULL, id_node->value, id_node);
 }
@@ -139,13 +180,18 @@ char* check(Node *node){
         return NULL;
     }
     if(strcmp(node->type, "Return") == 0){
+        if(!node->son && !(strcmp(return_type, "void") == 0)){
+            error_incompatible_type(node->true_type, "void", node);
+            return NULL;
+        } 
         if(!node->son) return NULL;
         char *son_type = check(node->son);
+        int int_double = map_int_double(return_type) >= map_int_double(son_type) && map_int_double(return_type) >= 0 && map_int_double(son_type) >= 0;
         if(strcmp(son_type, "void") == 0){
             error_incompatible_type(node->true_type, son_type, node->son);
         }
-        else if(strcmp(son_type, return_type) != 0){
-            error_incompatible_type(node->true_type, son_type, node->son);
+        else if(strcmp(son_type, return_type) != 0 ){
+            if(!int_double)error_incompatible_type(node->true_type, son_type, node->son);
         }
         node->true_type = strdup(son_type);
         return NULL;
@@ -158,6 +204,7 @@ char* check(Node *node){
             son_type = check(aux);
             params = add_param(params, NULL, son_type, NULL);
         }
+        if(!params) params = add_param(NULL, NULL, "", NULL);
         int ambiguous = 0;
         TableElement *func = search_el_func(func_id, params, &ambiguous);
         if(!func){
@@ -180,7 +227,7 @@ char* check(Node *node){
     }
     if(strcmp(node->type, "Print") == 0){
         char *son_type = check(node->son);
-        if(strcmp(son_type, "void") == 0 || strcmp(son_type, "undef") == 0){
+        if(strcmp(son_type, "void") == 0 || strcmp(son_type, "undef") == 0 || strcmp(son_type, "String[]") == 0){
             error_incompatible_type(node->true_type, son_type, node->son);
         }
         return NULL;
@@ -200,7 +247,8 @@ char* check(Node *node){
         char *other_son_type = check(node->son->bro);
         int mapped_son_type = map_int_double(son_type);
         int mapped_other_son_type = map_int_double(other_son_type);
-        if(!(strcmp(son_type, other_son_type) == 0) && !(mapped_son_type >= 0 && mapped_other_son_type >= 0 && mapped_son_type >= mapped_other_son_type)){
+        int strings = strcmp(son_type, "String[]") == 0 || strcmp(other_son_type, "String[]") == 0;
+        if(!(strcmp(son_type, other_son_type) == 0) && !(mapped_son_type >= 0 && mapped_other_son_type >= 0 && mapped_son_type >= mapped_other_son_type) || strings){
             error_operator_cannot_be_applied(node->true_type, son_type, other_son_type, node);
         }
         node->true_type = strdup(son_type);
@@ -212,12 +260,15 @@ char* check(Node *node){
         char *other_son_type = check(node->son->bro);
         if(!((strcmp(son_type, "int") == 0 || strcmp(son_type, "boolean") == 0) && strcmp(son_type, other_son_type) == 0)){
             error_operator_cannot_be_applied(node->true_type, son_type, other_son_type, node);
+            node->true_type = strdup("undef");
+            node->print_true_type = 1;
+            return "undef";
         }
         node->true_type = strdup(son_type);
         node->print_true_type = 1;
         return son_type;
     }
-    if(strcmp(node->type, "Or") == 0 || strcmp(node->type, "And") == 0 || strcmp(node->type, "Xor") == 0){
+    if(strcmp(node->type, "Or") == 0 || strcmp(node->type, "And") == 0){
         char *son_type = check(node->son);
         char *other_son_type = check(node->son->bro);
         if(!(strcmp(son_type, "boolean") == 0 && strcmp(son_type, other_son_type) == 0)){
@@ -299,9 +350,14 @@ char* check(Node *node){
         return "double";
     }
     if(strcmp(node->type, "Lshift") == 0 || strcmp(node->type, "Rshift") == 0){
+        /*if(strcmp(node->son->bro->type, "Id") == 0 && strcmp(search_el_scope(node->son->bro->value, scope, curr_params), "int") == 0){
+            node->true_type = strdup("none");
+            node->print_true_type = 0;
+            return "none";
+        }*/
         char *son_type = check(node->son);
         char *other_son_type = check(node->son->bro);
-        if(!(strcmp(son_type, "int") == 0 && strcmp(son_type, other_son_type) == 0)){
+        if(!(strcmp(son_type, "int") == 0 && strcmp(other_son_type, "int") == 0)){
             error_operator_cannot_be_applied(node->true_type, son_type, other_son_type, node);
             node->true_type = strdup("undef");
             node->print_true_type = 1;
@@ -314,13 +370,15 @@ char* check(Node *node){
     if(strcmp(node->type, "DecLit") == 0){
         node->true_type = strdup("int");
         node->print_true_type = 1;
-        long value = atol(node->value);
+        long value = (long)convert_num(node->value);
         if(value > 2147483647 || value < -2147483648) error_out_of_bounds(node->value, node);
         return "int";
     }
     if(strcmp(node->type, "RealLit") == 0){
         node->true_type = strdup("double");
         node->print_true_type = 1;
+        double value = convert_num(node->value);
+        if(value > 2147483647 || value < -2147483648) error_out_of_bounds(node->value, node);
         return "double";
     }
     if(strcmp(node->type, "BoolLit") == 0){

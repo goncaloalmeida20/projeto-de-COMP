@@ -4,6 +4,7 @@
 typedef struct param{
 	char *name;
 	char *param_type;
+	int valid;
 	struct param *next;
 } Param;
 
@@ -27,7 +28,7 @@ extern SymTab *symtab_list;
 
 int map_int_double(char *type);
 Param* param_dup(Param *params);
-Param* add_param(Param *params, char *name, char *type, int *already_exists);
+Param* add_param(Param *params, char *name, char *type, int *error);
 char *search_el_scope(char *name, char *scope, Param *params);
 TableElement *search_el_func(char *name, Param *params, int *ambiguous);
 int insert_el(char *name, char *type, char *scope, Param *params);
