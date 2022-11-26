@@ -27,6 +27,7 @@ typedef struct node{
     struct node * bro;
     int line;
     int col;
+	int check_node;
 } Node;
 
 extern Node* root;

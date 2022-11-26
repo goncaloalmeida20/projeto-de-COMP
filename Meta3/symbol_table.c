@@ -19,15 +19,40 @@ int map_int_double(char *type){
     return -1;
 }
 
-SymTab* search_symtab(char *scope){	
+int compare_params(Param *p1,Param *p2){
+	Param *aux1 = p1, *aux2 = p2;
+	int return_promoted = 1; //1-os parâmetros coincidem, 2-há ints em parâmetros double
+	int mapped_p1_type, mapped_p2_type;
+	for(; aux1 && aux2; aux1 = aux1->next, aux2=aux2->next){
+		if(strcmp(aux1->param_type, aux2->param_type) == 0) continue;
+		mapped_p1_type = map_int_double(aux1->param_type);
+		mapped_p2_type = map_int_double(aux2->param_type);
+		//printf("aaaa %s %d %s %d\n", aux1->name, mapped_p1_type, aux2->name, mapped_p2_type);
+		if(mapped_p1_type >= 0 && mapped_p2_type >= 0 && mapped_p1_type >= mapped_p2_type){
+			return_promoted = 2;
+		}
+		else return 0;
+	}
+	if(!aux1 && !aux2) return return_promoted;
+	return 0;
+}
+
+SymTab* search_symtab(char *scope, Param *params){	
 	if(scope == NULL) return global_symtab;
 	
 	if(symtab_list == NULL){
 		return NULL;
 	}
 
-	for(SymTab *aux = symtab_list; aux != NULL; aux = aux->next)
-		if(strcmp(scope, aux->scope) == 0) return aux;
+	for(SymTab *aux = symtab_list; aux != NULL; aux = aux->next){
+		/*printf("aaaa %s %s\n", scope, aux->scope);
+		print_params(params);
+		printf("\nzzzz\n");
+		print_params(aux->params);
+		printf("--------\n");*/
+		if(strcmp(scope, aux->scope) == 0 && compare_params(params, aux->params) == 1) return aux;
+	}
+		
 	
 	printf("SCOPE NOT FOUND ERROR\n");
 	return NULL;
@@ -45,8 +70,8 @@ char *search_el(char *name, SymTab *symtab){
 	return NULL;
 }
 
-char *search_el_scope(char *name, char *scope){
-	SymTab *symtab = search_symtab(scope);
+char *search_el_scope(char *name, char *scope, Param* params){
+	SymTab *symtab = search_symtab(scope, params);
 	if(!symtab) return NULL;
 	//verificar a existência do identificador no scope atual
 	char *el = search_el(name, symtab);
@@ -103,24 +128,6 @@ Param* add_param(Param *params, char *name, char *type, int *already_exists){
 	return params;
 }
 
-int compare_params(Param *p1,Param *p2){
-	Param *aux1 = p1, *aux2 = p2;
-	int return_promoted = 1; //1-os parâmetros coincidem, 2-há ints em parâmetros double
-	int mapped_p1_type, mapped_p2_type;
-	for(; aux1 && aux2; aux1 = aux1->next, aux2=aux2->next){
-		if(strcmp(aux1->param_type, aux2->param_type) == 0) continue;
-		mapped_p1_type = map_int_double(aux1->param_type);
-		mapped_p2_type = map_int_double(aux2->param_type);
-		//printf("aaaa %s %d %s %d\n", aux1->name, mapped_p1_type, aux2->name, mapped_p2_type);
-		if(mapped_p1_type >= 0 && mapped_p2_type >= 0 && mapped_p1_type >= mapped_p2_type){
-			return_promoted = 2;
-		}
-		else return 0;
-	}
-	if(!aux1 && !aux2) return return_promoted;
-	return 0;
-}
-
 TableElement *search_el_func(char *name, Param *params, int *ambiguous){
 	if(ambiguous) *ambiguous = 0;
 	int ambiguous_count = 0;
@@ -146,9 +153,9 @@ TableElement *search_el_func(char *name, Param *params, int *ambiguous){
 	return promoted_int_func;
 }
 
-int insert_el(char *name, char *type, char *scope){
+int insert_el(char *name, char *type, char *scope, Param *params){
 	//verificar se o scope existe
-	SymTab *symtab = search_symtab(scope);
+	SymTab *symtab = search_symtab(scope, params);
 	if(!symtab){
 		return 0;
 	}
@@ -181,7 +188,7 @@ int insert_symtab(char *name, char *type, Param *params){
 
 	newSymTab->scope = strdup(name);
 	newSymTab->type = strdup(type);
-	newSymTab->params = params;
+	newSymTab->params = param_dup(params);
 	newSymTab->symbols = NULL;
 	newSymTab->next = NULL;
 
@@ -204,7 +211,7 @@ int insert_el_func(char *name, char *type, Param *params){
 	if(!params){
 		newSymbol->params = add_param(NULL, NULL, "", NULL);
 	}
-	else newSymbol->params = params;
+	else newSymbol->params = param_dup(params);
 	newSymbol->type = strdup(type);
 	newSymbol->next = NULL;
 	if(!global_symtab->symbols){

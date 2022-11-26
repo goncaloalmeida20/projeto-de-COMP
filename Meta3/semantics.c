@@ -6,9 +6,14 @@
 
 char *scope = NULL;
 char *return_type = NULL;
+Param *curr_params = NULL;
 
 void error_out_of_bounds(char *value, Node *pos){
     printf("Line %d, col %d: Number %s out of bounds\n", pos->line, pos->col, value);
+}
+
+void error_underscore_reserved(Node *pos){
+    printf("Line %d, col %d: Symbol _ is reserved\n", pos->line, pos->col);
 }
 
 void error_ambiguous_func(Param *params, char *method, Node *pos){
@@ -53,22 +58,26 @@ void declare_method(Node *node){
         int already_exists = 0;
         for(Node *aux = method_params->son; aux; aux = aux->bro){
             params = add_param(params, aux->son->bro->value, aux->son->true_type, &already_exists);
-            if(already_exists)
+            if(already_exists){
                 error_already_defined(NULL, aux->son->bro->value, aux->son->bro);
+            }
         }
-        if(!insert_el_func(method_id->value, method_type->true_type, params))
+        if(!insert_el_func(method_id->value, method_type->true_type, params)){
             error_already_defined(params, method_id->value, method_id);
+            node->check_node = 0;
+        }
+            
 }
 
 void declare_var(Node *node){
         Node *type_node = node->son;
         Node *id_node = type_node->bro;
-        if(!insert_el(id_node->value, type_node->true_type, scope))
+        if(!insert_el(id_node->value, type_node->true_type, scope, curr_params))
             error_already_defined(NULL, id_node->value, id_node);
 }
 
 char* check(Node *node){
-    if(!node) return NULL;
+    if(!node || !node->check_node) return NULL;
     if(strcmp(node->type, "Program") == 0){
         //registar os metodos e variaveis globais primeiro
         for(Node *aux = node->son->bro; aux; aux = aux->bro){
@@ -87,16 +96,24 @@ char* check(Node *node){
         return NULL;
     }
     if(strcmp(node->type, "MethodDecl") == 0){
-        char *method_return_type = node->son->son->true_type;
-        char *method_id = node->son->son->bro->value;
+        Node *method_header = node->son;
+        char *method_return_type = method_header->son->true_type;
+        char *method_id = method_header->son->bro->value;
         scope = strdup(method_id);
         return_type = strdup(method_return_type);
+        curr_params = NULL;
+        for(Node *p = method_header->son->bro->bro->son; p; p = p->bro){
+            //printf("PPPPP %s\n", p->son->type);
+            curr_params = add_param(curr_params, p->son->bro->value, p->son->true_type, NULL);
+        }
+
         Node *method_body = node->son->bro;
         for(Node *aux = method_body->son; aux; aux = aux->bro){
             check(aux);
         }
         scope = NULL;
         return_type = NULL;
+        curr_params = NULL;
         return NULL;
     }
     if(strcmp(node->type, "Block") == 0){
@@ -139,7 +156,7 @@ char* check(Node *node){
         Param *params = NULL;
         for(Node *aux = node->son->bro; aux; aux = aux->bro){
             son_type = check(aux);
-            params = add_param(params, NULL, aux->true_type, NULL);
+            params = add_param(params, NULL, son_type, NULL);
         }
         int ambiguous = 0;
         TableElement *func = search_el_func(func_id, params, &ambiguous);
@@ -222,7 +239,7 @@ char* check(Node *node){
     if(strcmp(node->type, "Minus") == 0 || strcmp(node->type, "Plus") == 0){
         char *son_type = check(node->son);
         node->print_true_type = 1;
-        if (map_int_double(son_type) < 0){
+        if (map_int_double(son_type) >= 0){
             node->true_type = strdup(son_type);
             return son_type;
         } 
@@ -240,10 +257,22 @@ char* check(Node *node){
         node->print_true_type = 1;
         return "int";
     }
-    if(strcmp(node->type, "Eq") == 0 || strcmp(node->type, "Ne") == 0 || strcmp(node->type, "Lt") == 0 || strcmp(node->type, "Gt") == 0 || strcmp(node->type, "Le") == 0 || strcmp(node->type, "Ge") == 0){
+    if(strcmp(node->type, "Eq") == 0 || strcmp(node->type, "Ne") == 0){
         char *son_type = check(node->son);
         char *other_son_type = check(node->son->bro);
-        if(!(strcmp(son_type, other_son_type) == 0 || map_int_double(son_type) + map_int_double(other_son_type) == 1)){
+        int booleans = strcmp(son_type, "boolean") == 0 && strcmp(son_type, other_son_type) == 0;
+        int valid_numbers = strcmp(son_type, other_son_type) == 0 || map_int_double(son_type) + map_int_double(other_son_type) == 1;
+        if(!(map_int_double(son_type) >= 0 && map_int_double(other_son_type) >= 0 && valid_numbers || booleans)){
+            error_operator_cannot_be_applied(node->true_type, son_type, other_son_type, node);
+        }
+        node->true_type = strdup("boolean");
+        node->print_true_type = 1;
+        return "boolean";
+    }
+    if(strcmp(node->type, "Lt") == 0 || strcmp(node->type, "Gt") == 0 || strcmp(node->type, "Le") == 0 || strcmp(node->type, "Ge") == 0){
+        char *son_type = check(node->son);
+        char *other_son_type = check(node->son->bro);
+        if(!(map_int_double(son_type) >= 0 && map_int_double(other_son_type) >= 0)){
             error_operator_cannot_be_applied(node->true_type, son_type, other_son_type, node);
         }
         node->true_type = strdup("boolean");
@@ -305,7 +334,7 @@ char* check(Node *node){
         return "String";
     }
     if(strcmp(node->type, "Id") == 0){
-        char *id_type = search_el_scope(node->value, scope);
+        char *id_type = search_el_scope(node->value, scope, curr_params);
         node->print_true_type = 1;
         if(!id_type){
             error_symbol_not_found(node->params, node->value, node);
