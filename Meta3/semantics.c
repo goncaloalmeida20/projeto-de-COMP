@@ -371,14 +371,14 @@ char* check(Node *node){
         node->true_type = strdup("int");
         node->print_true_type = 1;
         long value = (long)convert_num(node->value);
-        if(value > 2147483647 || value < -2147483648) error_out_of_bounds(node->value, node);
+        if(value > 2147483647) error_out_of_bounds(node->value, node);
         return "int";
     }
     if(strcmp(node->type, "RealLit") == 0){
         node->true_type = strdup("double");
         node->print_true_type = 1;
         double value = convert_num(node->value);
-        if(value > 2147483647 || value < -2147483648) error_out_of_bounds(node->value, node);
+        if(value > 2147483647) error_out_of_bounds(node->value, node);
         return "double";
     }
     if(strcmp(node->type, "BoolLit") == 0){
