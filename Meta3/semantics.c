@@ -58,28 +58,37 @@ double power(double a, long b){
     return result;
 }
 
-double convert_num(char *value, double *base, long *exponent) {
-    int len = strlen(value), underscore = 1, cont = 0, found_e = 0, minus = len;
-    char val[len];
-    strcpy(val, value);
-    char exp[len];
-    while(underscore == 1){
-        underscore = 0;
-        for(int i = 1; i < len; i++){
-            if(val[i] == '_') underscore = 1;
-            if(underscore == 1) val[i] = val[i+1];
-            if(val[i+1] == 'E' || val[i+1] == 'e'){minus=i+1;};
+double convert_num(char *value, double *base_conv, long *exp_conv){
+    char *val = strdup(value);
+    double b = 0; 
+    long e = 0;
+    char *i = val, *j = val;
+    for(; *i && *i != 'E' && *i != 'e'; i++){
+        if(*i != '_'){
+            *j = *i;
+            j++;
         }
     }
+    *j = 0;
+
+    char *base = val;
+    b = atof(base);
     
-    for(int i = 0; val[i] != 0; i++){
-        if(found_e == 1) exp[cont++] = val[i];
-        if (val[i] == 'E' || val[i] == 'e') found_e = 1;
-    }
-    val[minus] = 0;
-    if(base) *base = atof(val);
-    if(exponent) *exponent = atol(exp);
-    return atof(val) * (double)power(10,atol(exp));
+    i++;
+    if(*i){
+        char *exp = i;
+        for(j = i; *i; i++){
+            if(*i != '_'){
+                *j = *i;
+                j++;
+            }
+        }
+        j = 0;
+        e = atol(exp);
+    } 
+    if(base_conv) *base_conv = b;
+    if(exp_conv) *exp_conv = e;
+    return b * power(10, e);
 }
 
 void scientific_notation(double *base, long *exponent){
@@ -93,6 +102,7 @@ void scientific_notation(double *base, long *exponent){
         *exponent += 1;
         //printf("aaaa+ %lf\n", *base);
     }
+    //printf("aaaa %lf %ld\n", *base, *exponent);
 }
 
 void declare_method(Node *node){
@@ -399,9 +409,11 @@ char* check(Node *node){
         long exponent = 0;
         double value = convert_num(node->value, &base, &exponent);
         scientific_notation(&base, &exponent);
-        int max_cond = base > 1.7976931348623157 && exponent == 308. || exponent > 308.;
-        int min_cond = base < 4.9406564584124654 && exponent == -324. || exponent < -324.;
-        if(max_cond || min_cond) error_out_of_bounds(node->value, node);
+        int max_cond = base > 1.7976931348623157 && exponent == 308 || exponent > 308;
+        int min_cond = base < 4.9406564584124654 && exponent == -324 || exponent < -324;
+        if(max_cond || min_cond){
+            error_out_of_bounds(node->value, node);
+        }
         return "double";
     }
     if(strcmp(node->type, "BoolLit") == 0){
