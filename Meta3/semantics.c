@@ -95,14 +95,11 @@ void scientific_notation(double *base, long *exponent){
     while(*base < 1 && *base > 0){
         *base *= 10;
         *exponent -= 1;
-        //printf("aaaa %lf\n", *base);
     }
     while(*base >= 10){
         *base /= 10;
         *exponent += 1;
-        //printf("aaaa+ %lf\n", *base);
     }
-    //printf("aaaa %lf %ld\n", *base, *exponent);
 }
 
 void declare_method(Node *node){
