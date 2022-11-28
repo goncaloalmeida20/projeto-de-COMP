@@ -289,3 +289,30 @@ void show_table(){
     }
 	printf("\n");	
 }
+
+void free_params(Param *params){
+	if (!params) return;
+	if(params->name) free(params->name);
+	if(params->param_type) free(params->param_type);
+	free_params(params->next);
+	free(params);
+}
+
+void free_table_element(TableElement table_element){
+	if (!table_element) return;
+	if(table_element->name) free(table_element->name);
+	if(table_element->type) free(table_element->type);
+	free_params(table_element->params);
+	free_table_element(table_element->next);
+	free(table_element);
+}
+
+void free_sym_tab(SymTab sym_tab){
+	if (!sym_tab) return;
+	if(sym_tab->type) free(sym_tab->type);
+	if(sym_tab->scope) free(sym_tab->scope);
+	free_params(table_element->params);
+	free_table_element(sym_tab->symbols);
+	free_sym_tab(sym_tab->next);
+	free(sym_tab);
+}

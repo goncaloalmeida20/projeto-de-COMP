@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "tree.h"
+#include "symbol_table.h"
 
 Node* root = NULL;
 
@@ -84,7 +85,9 @@ void free_tree(Node* n){
     free_tree(n->son);
     free_tree(n->bro);
     free(n->type);
+    if(n->true_type != NULL) free(n->true_type);
     if(n->value != NULL) free(n->value);
+    free_params(n->Params);
     free(n);
 }
 
