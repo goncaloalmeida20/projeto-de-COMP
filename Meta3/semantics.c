@@ -58,7 +58,7 @@ double power(double a, long b){
     return result;
 }
 
-double convert_num(char * value) {
+double convert_num(char *value, double *base, long *exponent) {
     int len = strlen(value), underscore = 1, cont = 0, found_e = 0, minus = len;
     char val[len];
     strcpy(val, value);
@@ -68,16 +68,31 @@ double convert_num(char * value) {
         for(int i = 1; i < len; i++){
             if(val[i] == '_') underscore = 1;
             if(underscore == 1) val[i] = val[i+1];
-            if(val[i+1] == 'E'){minus=i+1;};
+            if(val[i+1] == 'E' || val[i+1] == 'e'){minus=i+1;};
         }
     }
     
     for(int i = 0; val[i] != 0; i++){
         if(found_e == 1) exp[cont++] = val[i];
-        if (val[i] == 'E') found_e = 1;
+        if (val[i] == 'E' || val[i] == 'e') found_e = 1;
     }
     val[minus] = 0;
+    if(base) *base = atof(val);
+    if(exponent) *exponent = atol(exp);
     return atof(val) * (double)power(10,atol(exp));
+}
+
+void scientific_notation(double *base, long *exponent){
+    while(*base < 1 && *base > 0){
+        *base *= 10;
+        *exponent -= 1;
+        //printf("aaaa %lf\n", *base);
+    }
+    while(*base >= 10){
+        *base /= 10;
+        *exponent += 1;
+        //printf("aaaa+ %lf\n", *base);
+    }
 }
 
 void declare_method(Node *node){
@@ -144,7 +159,6 @@ char* check(Node *node){
         return_type = strdup(method_return_type);
         curr_params = NULL;
         for(Node *p = method_header->son->bro->bro->son; p; p = p->bro){
-            //printf("PPPPP %s\n", p->son->type);
             curr_params = add_param(curr_params, p->son->bro->value, p->son->true_type, NULL);
         }
 
@@ -152,6 +166,9 @@ char* check(Node *node){
         for(Node *aux = method_body->son; aux; aux = aux->bro){
             check(aux);
         }
+        free(scope);
+        free(return_type);
+        free_params(curr_params);
         scope = NULL;
         return_type = NULL;
         curr_params = NULL;
@@ -208,7 +225,7 @@ char* check(Node *node){
         int ambiguous = 0;
         TableElement *func = search_el_func(func_id, params, &ambiguous);
         if(!func){
-            func_id_node->params = params;
+            func_id_node->params = param_dup(params);
             if(ambiguous) error_ambiguous_func(node->son->params, node->son->value, node->son);
             else error_symbol_not_found(node->son->params, node->son->value, node->son);
             func_id_node->true_type = strdup("undef");
@@ -223,6 +240,7 @@ char* check(Node *node){
         func_id_node->params = param_dup(func->params);
         node->true_type = strdup(func->type);
         node->print_true_type = 1;
+        free_params(params);
         return node->true_type;
     }
     if(strcmp(node->type, "Print") == 0){
@@ -370,15 +388,20 @@ char* check(Node *node){
     if(strcmp(node->type, "DecLit") == 0){
         node->true_type = strdup("int");
         node->print_true_type = 1;
-        long value = (long)convert_num(node->value);
+        long value = (long)convert_num(node->value, NULL, NULL);
         if(value > 2147483647) error_out_of_bounds(node->value, node);
         return "int";
     }
     if(strcmp(node->type, "RealLit") == 0){
         node->true_type = strdup("double");
         node->print_true_type = 1;
-        double value = convert_num(node->value);
-        if(value > 2147483647) error_out_of_bounds(node->value, node);
+        double base = 0;
+        long exponent = 0;
+        double value = convert_num(node->value, &base, &exponent);
+        scientific_notation(&base, &exponent);
+        int max_cond = base > 1.7976931348623157 && exponent == 308. || exponent > 308.;
+        int min_cond = base < 4.9406564584124654 && exponent == -324. || exponent < -324.;
+        if(max_cond || min_cond) error_out_of_bounds(node->value, node);
         return "double";
     }
     if(strcmp(node->type, "BoolLit") == 0){
@@ -410,4 +433,9 @@ int semantics_check(){
     init_global_symtab();
     check(root);
     return 1;
+}
+
+void free_tables(){
+    free_sym_tab(symtab_list);
+    free_sym_tab(global_symtab);
 }

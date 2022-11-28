@@ -122,7 +122,6 @@ int main(int argc, char *argv[]){
         else if(strcmp(argv[1], "-e2") == 0) {
             flag_yacc = 0;
             yyparse();
-            free_tree(root);
         }
         else if(strcmp(argv[1], "-t") == 0) {
             flag_yacc = 1;
@@ -130,7 +129,6 @@ int main(int argc, char *argv[]){
             if(!yacc_error){
                 print_tree(root, 0);
             }
-            free_tree(root);
         }
         else if(strcmp(argv[1], "-s") == 0) {
             flag_yacc = 1;
@@ -140,14 +138,12 @@ int main(int argc, char *argv[]){
                 show_table();
                 print_tree(root, 0);
             }
-            free_tree(root);
         }else{
             flag_yacc = 1;
             yyparse();
             if(!yacc_error){
                 semantics_check();
             }
-            free_tree(root);
         }
     }
     else{
@@ -155,9 +151,11 @@ int main(int argc, char *argv[]){
         yyparse();
         if(!yacc_error){
             semantics_check();
+
         }
-        free_tree(root);
     }
+    //free_tables();
+    //free_tree(root);
     return 0;
 }
 

@@ -8,6 +8,7 @@
 #define TREE_H
 
 #include "symbol_table.h"
+#include "semantics.h"
 
 #define TYPE_SIZE 100
 

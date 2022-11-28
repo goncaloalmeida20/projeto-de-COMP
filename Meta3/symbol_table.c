@@ -67,6 +67,7 @@ char *search_el(char *name, SymTab *symtab){
 		if(!aux->params && strcmp(aux->name, name)==0)
 			return aux->type;
 		
+		
 	return NULL;
 }
 
@@ -173,7 +174,8 @@ int insert_el(char *name, char *type, char *scope, Param *params){
 	newSymbol->name = strdup(name);
 	newSymbol->type = strdup(type);
 	newSymbol->next = NULL;
-	
+	newSymbol->params = NULL;
+
 	if(!symtab->symbols){
 		symtab->symbols = newSymbol;
 		return 1;
@@ -298,7 +300,7 @@ void free_params(Param *params){
 	free(params);
 }
 
-void free_table_element(TableElement table_element){
+void free_table_element(TableElement *table_element){
 	if (!table_element) return;
 	if(table_element->name) free(table_element->name);
 	if(table_element->type) free(table_element->type);
@@ -307,11 +309,11 @@ void free_table_element(TableElement table_element){
 	free(table_element);
 }
 
-void free_sym_tab(SymTab sym_tab){
+void free_sym_tab(SymTab *sym_tab){
 	if (!sym_tab) return;
 	if(sym_tab->type) free(sym_tab->type);
 	if(sym_tab->scope) free(sym_tab->scope);
-	free_params(table_element->params);
+	free_params(sym_tab->params);
 	free_table_element(sym_tab->symbols);
 	free_sym_tab(sym_tab->next);
 	free(sym_tab);

@@ -5,5 +5,6 @@
 #include "symbol_table.h"
 
 int semantics_check();
+void free_tables();
 
 #endif

@@ -81,13 +81,13 @@ void print_tree(Node *n, int level){
 }
 
 void free_tree(Node* n){
-    if (n == NULL) return;
+    if (!n) return;
     free_tree(n->son);
     free_tree(n->bro);
     free(n->type);
-    if(n->true_type != NULL) free(n->true_type);
-    if(n->value != NULL) free(n->value);
-    free_params(n->Params);
+    if(n->true_type) free(n->true_type);
+    if(n->value) free(n->value);
+    free_params(n->params);
     free(n);
 }
 
