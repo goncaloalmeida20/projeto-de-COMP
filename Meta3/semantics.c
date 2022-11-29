@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 #include "semantics.h"
 #include "symbol_table.h"
 
@@ -51,55 +52,29 @@ void error_operator_cannot_be_applied(char *operator, char *type1, char *type2, 
     else printf("Line %d, col %d: Operator %s cannot be applied to type %s\n", pos->line, pos->col, operator, type1);
 }
 
-double power(double a, long b){
-    if(b < 0) return 1/power(a, -b);
-    double result = 1;
-    for(long i = 0; i < b; i++) result *= a;
-    return result;
+int is_zero(char *s){
+    if(!s) return 0;
+    for(char *c = s; *c && *c != 'E' && *c != 'e' ; c++) if(*c != '0' && *c != '.') return 0;
+    return 1;
 }
 
-double convert_num(char *value, double *base_conv, long *exp_conv){
+double convert_num(char *value, int *base_is_zero){
     char *val = strdup(value);
+
     double b = 0; 
     long e = 0;
     char *i = val, *j = val;
-    for(; *i && *i != 'E' && *i != 'e'; i++){
+    for(; *i; i++){
         if(*i != '_'){
             *j = *i;
             j++;
         }
     }
+
     *j = 0;
+    if(base_is_zero) *base_is_zero = is_zero(val);
 
-    char *base = val;
-    b = atof(base);
-    
-    i++;
-    if(*i){
-        char *exp = i;
-        for(j = i; *i; i++){
-            if(*i != '_'){
-                *j = *i;
-                j++;
-            }
-        }
-        j = 0;
-        e = atol(exp);
-    } 
-    if(base_conv) *base_conv = b;
-    if(exp_conv) *exp_conv = e;
-    return b * power(10, e);
-}
-
-void scientific_notation(double *base, long *exponent){
-    while(*base < 1 && *base > 0){
-        *base *= 10;
-        *exponent -= 1;
-    }
-    while(*base >= 10){
-        *base /= 10;
-        *exponent += 1;
-    }
+    return atof(val);
 }
 
 void declare_method(Node *node){
@@ -395,7 +370,7 @@ char* check(Node *node){
     if(strcmp(node->type, "DecLit") == 0){
         node->true_type = strdup("int");
         node->print_true_type = 1;
-        long value = (long)convert_num(node->value, NULL, NULL);
+        long value = (long)convert_num(node->value, NULL);
         if(value > 2147483647) error_out_of_bounds(node->value, node);
         return "int";
     }
@@ -404,10 +379,10 @@ char* check(Node *node){
         node->print_true_type = 1;
         double base = 0;
         long exponent = 0;
-        double value = convert_num(node->value, &base, &exponent);
-        scientific_notation(&base, &exponent);
-        int max_cond = base > 1.7976931348623157 && exponent == 308 || exponent > 308;
-        int min_cond = base < 4.9406564584124654 && exponent == -324 || exponent < -324;
+        int base_is_zero = 0;
+        double value = convert_num(node->value, &base_is_zero);
+        int max_cond = value > 1.7976931348623157e308;
+        int min_cond = value == 0 && !base_is_zero;
         if(max_cond || min_cond){
             error_out_of_bounds(node->value, node);
         }
@@ -434,8 +409,7 @@ char* check(Node *node){
         node->true_type = strdup(id_type);
         return node->true_type;
     }
-    printf("TYPE ERROR%s\n", node->type);
-    return NULL;
+    return "none";
 }
 
 int semantics_check(){
