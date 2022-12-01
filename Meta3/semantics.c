@@ -58,7 +58,7 @@ int is_zero(char *s){
     return 1;
 }
 
-double convert_num(char *value, int *base_is_zero){
+double convert_num(char *value, int *base_is_zero, char **conv_str){
     char *val = strdup(value);
 
     double b = 0; 
@@ -73,8 +73,18 @@ double convert_num(char *value, int *base_is_zero){
 
     *j = 0;
     if(base_is_zero) *base_is_zero = is_zero(val);
-
+    if(conv_str) *conv_str = val;
     return atof(val);
+}
+
+int bigger_than_long(char * value){
+    if(strlen(value) > 10) return 1;
+    char longi[11] = "2147483647";
+    for(int i = 0; i < 10; i++){
+        if (value[i] < longi[i]) return 0;
+        if (value[i] > longi[i]) return 1;
+    }
+    return 0;
 }
 
 void declare_method(Node *node){
@@ -247,8 +257,8 @@ char* check(Node *node){
         char *other_son_type = check(node->son->bro);
         int mapped_son_type = map_int_double(son_type);
         int mapped_other_son_type = map_int_double(other_son_type);
-        int strings = strcmp(son_type, "String[]") == 0 || strcmp(other_son_type, "String[]") == 0;
-        if(!(strcmp(son_type, other_son_type) == 0) && !(mapped_son_type >= 0 && mapped_other_son_type >= 0 && mapped_son_type >= mapped_other_son_type) || strings){
+        int valid_int_doubles = mapped_son_type >= 0 && mapped_other_son_type >= 0 && mapped_son_type >= mapped_other_son_type;
+        if(!(strcmp(son_type, other_son_type) == 0 && strcmp(son_type, "boolean") == 0 || valid_int_doubles)){
             error_operator_cannot_be_applied(node->true_type, son_type, other_son_type, node);
         }
         node->true_type = strdup(son_type);
@@ -370,17 +380,16 @@ char* check(Node *node){
     if(strcmp(node->type, "DecLit") == 0){
         node->true_type = strdup("int");
         node->print_true_type = 1;
-        long value = (long)convert_num(node->value, NULL);
-        if(value > 2147483647) error_out_of_bounds(node->value, node);
+        char *converted_str = node->value;
+        long value = (long)convert_num(node->value, NULL, &converted_str);
+        if (value > 2147483647 || value < 0 || strlen(converted_str) >= 10 && bigger_than_long(converted_str)) error_out_of_bounds(node->value, node);
         return "int";
     }
     if(strcmp(node->type, "RealLit") == 0){
         node->true_type = strdup("double");
         node->print_true_type = 1;
-        double base = 0;
-        long exponent = 0;
         int base_is_zero = 0;
-        double value = convert_num(node->value, &base_is_zero);
+        double value = convert_num(node->value, &base_is_zero, NULL);
         int max_cond = value > 1.7976931348623157e308;
         int min_cond = value == 0 && !base_is_zero;
         if(max_cond || min_cond){

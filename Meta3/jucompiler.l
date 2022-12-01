@@ -154,8 +154,8 @@ int main(int argc, char *argv[]){
 
         }
     }
-    //free_tables();
-    //free_tree(root);
+    free_tables();
+    free_tree(root);
     return 0;
 }
 
