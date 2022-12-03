@@ -11,6 +11,7 @@
     #include "y.tab.h"
     #include "symbol_table.h"
     #include "semantics.h"
+    #include "meta4.h"
 
     extern int flag_yacc;
     extern int line_yacc, col_yacc;
@@ -138,7 +139,7 @@ int main(int argc, char *argv[]){
                 show_table();
                 print_tree(root, 0);
             }
-        }else{
+        }else if(strcmp(argv[1], "-e3") == 0){
             flag_yacc = 1;
             yyparse();
             if(!yacc_error){
@@ -150,8 +151,7 @@ int main(int argc, char *argv[]){
         flag_yacc = 1;
         yyparse();
         if(!yacc_error){
-            semantics_check();
-
+            if(!semantics_check()) setup_llvmir();
         }
     }
     free_tables();

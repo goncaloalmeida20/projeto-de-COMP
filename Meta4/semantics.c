@@ -8,26 +8,32 @@
 char *scope = NULL;
 char *return_type = NULL;
 Param *curr_params = NULL;
+int error = 0;
 
 void error_out_of_bounds(char *value, Node *pos){
+    if(!error) error = 1;
     printf("Line %d, col %d: Number %s out of bounds\n", pos->line, pos->col, value);
 }
 
 void error_underscore_reserved(Node *pos){
+    if(!error) error = 1;
     printf("Line %d, col %d: Symbol _ is reserved\n", pos->line, pos->col);
 }
 
 void error_ambiguous_func(Param *params, char *method, Node *pos){
+    if(!error) error = 1;
     printf("Line %d, col %d: Reference to method %s(", pos->line, pos->col, method);
     print_params(params);
     printf(") is ambiguous\n");
 }
 
 void error_incompatible_type(char *statement, char *type, Node *pos){
+    if(!error) error = 1;
     printf("Line %d, col %d: Incompatible type %s in %s statement\n", pos->line, pos->col, type, statement);
 }
 
 void error_symbol_not_found(Param *params, char *symbol, Node *pos){
+    if(!error) error = 1;
     printf("Line %d, col %d: Cannot find symbol %s", pos->line, pos->col, pos->value);
     if(params){
         printf("(");
@@ -38,6 +44,7 @@ void error_symbol_not_found(Param *params, char *symbol, Node *pos){
 }
 
 void error_already_defined(Param *params, char* symbol, Node *pos){
+    if(!error) error = 1;
     printf("Line %d, col %d: Symbol %s", pos->line, pos->col, symbol);
     if(params){
         printf("(");
@@ -48,6 +55,7 @@ void error_already_defined(Param *params, char* symbol, Node *pos){
 }
 
 void error_operator_cannot_be_applied(char *operator, char *type1, char *type2, Node *pos){
+    if(!error) error = 1;
     if (type2) printf("Line %d, col %d: Operator %s cannot be applied to types %s, %s\n", pos->line, pos->col, operator, type1, type2);
     else printf("Line %d, col %d: Operator %s cannot be applied to type %s\n", pos->line, pos->col, operator, type1);
 }
@@ -424,7 +432,7 @@ char* check(Node *node){
 int semantics_check(){
     init_global_symtab();
     check(root);
-    return 1;
+    return error;
 }
 
 void free_tables(){
