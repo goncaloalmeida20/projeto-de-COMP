@@ -247,16 +247,6 @@ int init_global_symtab(){
 	return 1;
 }
 
-/*
-char* convert_type(char *type){
-    if(strcmp(type, "Int") == 0) return "int";
-    else if(strcmp(type, "Bool") == 0) return "boolean";
-    else if(strcmp(type, "Double") == 0) return "double";
-    else if(strcmp(type, "StringArray") == 0) return "String[]";
-    else if(strcmp(type, "Void") == 0) return "void";
-    else return type;
-}*/
-
 void print_params(Param *params){
     Param *aux;
     for(aux=params; aux; aux = aux->next){
