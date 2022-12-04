@@ -7,7 +7,52 @@
 int gen_llvmir(Node *node);
 
 char *curr_return_type = NULL;
+VarCounter *var_counter = NULL;
 int counter = 0;
+
+VarCounter* search_var_counter(char *var){
+    for(VarCounter *aux = var_counter; aux; aux = aux->next)  
+        if(strcmp(var, aux->name) == 0) return aux;
+    return NULL;
+}
+
+int update_var_counter(char *var){
+    VarCounter *new_var = search_var_counter(var);
+    if(!new_var){
+        new_var = (VarCounter *) malloc(sizeof(VarCounter));
+        if(!new_var){
+            printf("ERRO MALLOC INSERT_VAR_COUNTER\n");
+            return -1;
+        }
+        new_var->name = strdup(var);
+        new_var->counter = ++counter;
+
+        if(!var_counter){
+            new_var->next = NULL;
+            var_counter = new_var;
+            return counter;
+        } 
+        
+        VarCounter *aux, *previous;
+        for(aux = var_counter; aux; previous = aux, aux = aux->next);
+        previous->next = new_var;
+        return counter;
+    }
+    new_var->counter = ++counter;
+    return counter;
+}
+
+int get_counter(char *var){
+    VarCounter *vc = search_var_counter(var);
+    if(!vc) return update_var_counter(vc);
+    return vc->counter;
+}
+
+void free_var_counter(VarCounter *vc){
+    if(!vc) return;
+    free_var_counter(vc->next);
+    free(vc);
+}
 
 char * convert_type(char * s){
     if (strcmp(s, "Bool") == 0 || strcmp(s, "boolean") == 0 || strcmp(s, "BoolLit") == 0) return "i1";
@@ -43,7 +88,7 @@ void print_func(Node *node){
         if(aux != params) printf(", ");
         char *type = convert_type(aux->son->type);
         char *value = aux->son->son->value;
-        printf("%s %%%s", type, value);
+        printf("%s %%%d", type, get_counter(value));
     }
     printf(") {\n");
 
@@ -54,14 +99,13 @@ void load_value(Node *node){
     char *node_conv_type = convert_type(node->true_type);
     if(strcmp(node->type, "Id") == 0){
         // Se o operando for uma variável
-        if(strcmp(node_conv_type, "i32") == 0 || strcmp(node_conv_type, "i1") == 0) printf("%%%d = add %s %%%s, 0\n", ++counter, node_conv_type, node->value);
-        else printf("%%%d = fadd double %%%s, 0.0\n", ++counter, node->value);
+        if(strcmp(node_conv_type, "i32") == 0 || strcmp(node_conv_type, "i1") == 0) printf("%%%d = add %s %%%d, 0\n", ++counter, node_conv_type, get_counter(node->value));
+        else printf("%%%d = fadd double %%%d, 0.0\n", ++counter, get_counter(node->value));
     }
     else if(strcmp(node->type, "DecLit") == 0 || strcmp(node->type, "RealLit") == 0 || strcmp(node->type, "BoolLit") == 0){
         // Se o operando for um número
         if(strcmp(node->type, "DecLit") == 0 || strcmp(node->type, "BoolLit") == 0) printf("%%%d = add %s %s, 0\n", ++counter, node_conv_type, node->value);
-        else
-            printf("%%%d = fadd double %s, 0.0\n", ++counter, node->value);
+        else printf("%%%d = fadd double %s, 0.0\n", ++counter, node->value);
     }
     else{
         // Se o operando for uma operação
@@ -123,11 +167,14 @@ int gen_llvmir(Node *node){
     }
     if(strcmp(node->type, "MethodDecl") == 0){
         Node *method_header = node->son, *method_body = method_header->bro;
+        var_counter = NULL;
         print_func(method_header);
         for(Node *aux = method_body->son; aux; aux = aux->bro)
             gen_llvmir(aux);
         printf("}\n");
         curr_return_type = NULL;
+        free_var_counter(var_counter);
+        var_counter = NULL;
         return 0;
     }
     if(strcmp(node->type, "Return") == 0){
@@ -157,10 +204,10 @@ int gen_llvmir(Node *node){
         char *son_true_type = convert_type(son->true_type);
         char *other_son_true_type = convert_type(son->bro->true_type);
         if(strcmp(node->true_type, "int") == 0 || strcmp(node->true_type, "boolean") == 0 )
-            printf("%%%s = add %s %%%d, 0\n", son->value, son_true_type, counter);
+            printf("%%%d = add %s %%%d, 0\n", update_var_counter(son->value), son_true_type, counter);
         else {
-            if(strcmp(other_son_true_type, "i32") == 0) printf("%%%s = uitofp i32 %%%d to double\n", son->value, counter);
-            else printf("%%%s = fadd double %%%d, 0.0\n", son->value, counter);
+            if(strcmp(other_son_true_type, "i32") == 0) printf("%%%d = uitofp i32 %%%d to double\n", update_var_counter(son->value), counter);
+            else printf("%%%d = fadd double %%%d, 0.0\n", update_var_counter(son->value), counter);
         }
         return 0;
     }
@@ -217,17 +264,17 @@ int gen_llvmir(Node *node){
             // Se o operando for uma variável
             // Guarda-se o nome da variável (ex.: counter_op1 = "b")
             if(strcmp(aux_true_type, "i32") == 0)
-                printf("%%%d = sub i32 0, %%%s\n", ++counter, aux->value);
+                printf("%%%d = sub i32 0, %%%d\n", ++counter, get_counter(aux->value));
             else
-                printf("%%%d = fsub double 0.0, %%%s\n", ++counter, aux->value);
+                printf("%%%d = fsub double 0.0, %%%d\n", ++counter, get_counter(aux->value));
         }
         else if(strcmp(aux->type, "DecLit") == 0 || strcmp(aux->type, "RealLit") == 0){
             // Se o operando for um número
             // Guarda-se o valor do counter onde será guardado o número (ex.: counter_op1 = counter)
             if(strcmp(aux->type, "DecLit") == 0)
-                printf("%%%d = sub i32 0, %%%s\n", ++counter, aux->value);
+                printf("%%%d = sub i32 0, %%%d\n", ++counter, get_counter(aux->value));
             else
-                printf("%%%d = fsub double 0.0, %%%s\n", ++counter, aux->value);
+                printf("%%%d = fsub double 0.0, %%%d\n", ++counter, get_counter(aux->value));
         }
         else{
             // Se o operando for uma operação

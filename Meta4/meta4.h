@@ -3,6 +3,12 @@
 
 #include "tree.h"
 
+typedef struct _var_counter{
+    char * name;
+    int counter;
+    struct _var_counter *next;
+} VarCounter;
+
 int setup_llvmir();
 
 #endif
