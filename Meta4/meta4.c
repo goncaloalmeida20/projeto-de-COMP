@@ -329,6 +329,17 @@ int setup_llvmir(){
     printf("%%3 = load i8*, i8** %%2\n");
     printf("tail call i32 (i8*, ...) @printf(i8* %%3)\n");
     printf("ret void\n}\n");
+
+    int found_main = 0;
+    for(TableElement *aux = global_symtab->symbols; aux; aux = aux->next){
+        if(strcmp(aux->name, "main") == 0 && aux->params){
+            found_main = 1;
+            break;
+        } 
+    }
+    if(!found_main){
+        printf("\ndefine void @main() {\nret void\n}\n");
+    }
     //printf("\ndefine i32 @main() {\n");
     gen_llvmir(root);
     //print_boolean("%6");
