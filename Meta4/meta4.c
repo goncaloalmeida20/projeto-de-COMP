@@ -163,6 +163,35 @@ void two_son_boolean(Node *node, char *op_boolean){
     free(op[1]);
 }
 
+void two_son_cmp(Node *node, char *op_ins){
+            Node *aux = node->son;
+        char *op[2];
+        load_value(node->son, &op[0]);
+        load_value(node->son->bro, &op[1]);
+
+        Node *son = node->son;
+        char *son_true_type = convert_type(son->true_type);
+        char *other_son_true_type = convert_type(son->bro->true_type);
+        if(strcmp(son_true_type, "i32") == 0)
+            printf("%%%d = icmp %s i32 %s, %s\n", ++counter, op_ins, op[0], op[1]);
+        else if (strcmp(node->true_type, "double") == 0){
+            if(strcmp(son_true_type, "i32") == 0){
+                printf("%%%d = uitofp i32 %s to double\n", ++counter, op[0]);
+                op[0] = (char *)realloc(op[0], sizeof(char)*(counter_size() + 3));
+                sprintf(op[0], "%%%d", counter);
+            } else if(strcmp(other_son_true_type, "i32") == 0){
+                printf("%%%d = uitofp i32 %s to double\n", ++counter, op[1]);
+                op[1] = (char *)realloc(op[1], sizeof(char)*(counter_size() + 3));
+                sprintf(op[1], "%%%d", counter);
+            }
+            printf("%%%d = icmp %s double %s, %s\n", ++counter, op_ins, op[0], op[1]);
+        } else {
+            printf("%%%d = icmp %s i1 %s, %s\n", ++counter, op_ins, op[0], op[1]);
+        }
+        free(op[0]);
+        free(op[1]);
+}
+
 int gen_llvmir(Node *node){
     if(!node) return 0;
     if(strcmp(node->type, "Program") == 0){
@@ -300,7 +329,6 @@ int gen_llvmir(Node *node){
         return 0;
     }
     if(strcmp(node->type, "Minus") == 0){
-        int count = 0;
         Node *son = node->son;
         char *op;
         load_value(son, &op);
@@ -311,6 +339,38 @@ int gen_llvmir(Node *node){
             printf("%%%d = fsub double %s, 0.0\n", counter++, op);
             
         return 0;
+    }
+    if (strcmp(node->type, "Lshift") == 0){
+        char *op1;
+        load_value(node->son, &op1);
+        char *op2;
+        load_value(node->son->bro, &op2);
+        printf("%%%d = shl i32 %s, %s\n", ++counter, op1, op2);
+    }
+    if (strcmp(node->type, "Rshift") == 0){
+        char *op1;
+        load_value(node->son, &op1);
+        char *op2;
+        load_value(node->son->bro, &op2);
+        printf("%%%d = lshr i32 %s, %s\n", ++counter, op1, op2);
+    }
+    if (strcmp(node->type, "Eq") == 0){
+        two_son_cmp(node, "eq");
+    }
+    if (strcmp(node->type, "Ne") == 0){
+        two_son_cmp(node, "ne");
+    }
+    if (strcmp(node->type, "Lt") == 0){
+        two_son_cmp(node, "ult");
+    }
+    if (strcmp(node->type, "Gt") == 0){
+        two_son_cmp(node, "ugt");
+    }
+    if (strcmp(node->type, "Le") == 0){
+        two_son_cmp(node, "ule");
+    }
+    if (strcmp(node->type, "Ge") == 0){
+        two_son_cmp(node, "uge");
     }
     return 0;
 }
