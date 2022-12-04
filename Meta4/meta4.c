@@ -16,7 +16,7 @@ VarCounter* search_var_counter(char *var){
     return NULL;
 }
 
-int update_var_counter(char *var){
+int update_var_counter(char *var, int cnt){
     VarCounter *new_var = search_var_counter(var);
     if(!new_var){
         new_var = (VarCounter *) malloc(sizeof(VarCounter));
@@ -25,26 +25,26 @@ int update_var_counter(char *var){
             return -1;
         }
         new_var->name = strdup(var);
-        new_var->counter = ++counter;
+        new_var->counter = cnt;
 
         if(!var_counter){
             new_var->next = NULL;
             var_counter = new_var;
-            return counter;
+            return cnt;
         } 
         
         VarCounter *aux, *previous;
         for(aux = var_counter; aux; previous = aux, aux = aux->next);
         previous->next = new_var;
-        return counter;
+        return cnt;
     }
-    new_var->counter = ++counter;
-    return counter;
+    new_var->counter = cnt;
+    return cnt;
 }
 
 int get_counter(char *var){
     VarCounter *vc = search_var_counter(var);
-    if(!vc) return update_var_counter(vc);
+    if(!vc) return update_var_counter(var, counter++);
     return vc->counter;
 }
 
@@ -52,6 +52,12 @@ void free_var_counter(VarCounter *vc){
     if(!vc) return;
     free_var_counter(vc->next);
     free(vc);
+}
+
+int counter_size(){
+    int aux = counter, size = 0;
+    for(; aux > 0; aux /= 10, size++);
+    return size;
 }
 
 char * convert_type(char * s){
@@ -67,10 +73,12 @@ void print_boolean(char *s){
 
 void print_int(char *i){
     printf("tail call i32 (i8*, ...) @printf(i8* getelementptr ([3 x i8], [3 x i8]* @p_int, i64 0, i64 0), i32 %s)\n", i);
+    counter++;
 }
 
 void print_double(char *d){
     printf("tail call i32 (i8*, ...) @printf(i8* getelementptr ([6 x i8], [6 x i8]* @p_double, i64 0, i64 0), double %s)\n", d);
+    counter++;
 }
 
 void print_func(Node *node){
@@ -94,67 +102,65 @@ void print_func(Node *node){
 
 }
 
-void load_value(Node *node){
+void load_value(Node *node, char **op){
     if(!node) return;
-    char *node_conv_type = convert_type(node->true_type);
+    if(strcmp(node->type, "DecLit") == 0 || strcmp(node->type, "RealLit") == 0 || strcmp(node->type, "BoolLit") == 0){
+        *op = strdup(node->value);
+        return;
+    }
+    
     if(strcmp(node->type, "Id") == 0){
-        // Se o operando for uma variável
-        if(strcmp(node_conv_type, "i32") == 0 || strcmp(node_conv_type, "i1") == 0) printf("%%%d = add %s %%%d, 0\n", ++counter, node_conv_type, get_counter(node->value));
-        else printf("%%%d = fadd double %%%d, 0.0\n", ++counter, get_counter(node->value));
-    }
-    else if(strcmp(node->type, "DecLit") == 0 || strcmp(node->type, "RealLit") == 0 || strcmp(node->type, "BoolLit") == 0){
-        // Se o operando for um número
-        if(strcmp(node->type, "DecLit") == 0 || strcmp(node->type, "BoolLit") == 0) printf("%%%d = add %s %s, 0\n", ++counter, node_conv_type, node->value);
-        else printf("%%%d = fadd double %s, 0.0\n", ++counter, node->value);
-    }
-    else{
-        // Se o operando for uma operação
-        gen_llvmir(node);
-    }
+        *op = (char *)malloc(sizeof(char)*(counter_size() + 3)); // \0->+1 %%->+2
+        sprintf(*op, "%%%d", get_counter(node->value));
+        return;
+    } 
+
+    gen_llvmir(node);
+    *op = (char *)malloc(sizeof(char)*(counter_size() + 3)); // \0->+1 %%->+2
+    sprintf(*op, "%%%d", counter);
 }
 
 void two_son_int_double(Node *node, char *op_int, char *op_double){
     // Para fazer as conversões necessárias
-    int count = 0;
+    int count;
     Node *aux = node->son;
-    int counter_op[2];
-    while(count < 2){
-        if (count == 1) aux = node->son->bro;
-        load_value(aux);
-        counter_op[count] = counter;
-        count++;
-    }
+    char *op[2];
+    load_value(node->son, &op[0]);
+    load_value(node->son->bro, &op[1]);
 
     // Para descobrir se é uma adição do tipo: int + int / int + double / double + int / double + double
-    char *son_true_type = convert_type(node->son->true_type);
-    char *other_son_true_type = convert_type(node->son->bro->true_type);
+    Node *son = node->son;
+    char *son_true_type = convert_type(son->true_type);
+    char *other_son_true_type = convert_type(son->bro->true_type);
     if(strcmp(node->true_type, "int") == 0)
-        printf("%%%d = %s i32 %%%d, %%%d\n", ++counter, op_int, counter_op[0], counter_op[1]);
+        printf("%%%d = %s i32 %s, %s\n", ++counter, op_int, op[0], op[1]);
     else {
         if(strcmp(son_true_type, "i32") == 0){
-            printf("%%%d = uitofp i32 %%%d to double\n", ++counter, counter_op[0]);
-            counter_op[0] = counter;
+            printf("%%%d = uitofp i32 %s to double\n", ++counter, op[0]);
+            op[0] = (char *)realloc(op[0], sizeof(char)*(counter_size() + 3));
+            sprintf(op[0], "%%%d", counter);
         } else if(strcmp(other_son_true_type, "i32") == 0){
-            printf("%%%d = uitofp i32 %%%d to double\n", ++counter, counter_op[1]);
-            counter_op[1] = counter;
+            printf("%%%d = uitofp i32 %s to double\n", ++counter, op[1]);
+            op[1] = (char *)realloc(op[1], sizeof(char)*(counter_size() + 3));
+            sprintf(op[1], "%%%d", counter);
         }
-        printf("%%%d = %s double %%%d, %%%d\n", ++counter, op_double, counter_op[0], counter_op[1]);
+        printf("%%%d = %s double %s, %s\n", ++counter, op_double, op[0], op[1]);
     }
+    free(op[0]);
+    free(op[1]);
 }
 
 void two_son_boolean(Node *node, char *op_boolean){
     // Para fazer as conversões necessárias
-    int count = 0;
+    int count;
     Node *aux = node->son;
-    int counter_op[2];
-    while(count < 2){
-        if (count == 1) aux = node->son->bro;
-        char *aux_true_type = convert_type(aux->true_type);
-        load_value(aux);
-        counter_op[count] = counter;
-        count++;
-    }
-    printf("%%%d = %s i1 %%%d, %%%d\n", ++counter, op_boolean, counter_op[0], counter_op[1]);
+    char *op[2];
+    load_value(node->son, &op[0]);
+    load_value(node->son->bro, &op[1]);
+
+    printf("%%%d = %s i1 %s, %s\n", ++counter, op_boolean, op[0], op[1]);
+    free(op[0]);
+    free(op[1]);
 }
 
 int gen_llvmir(Node *node){
@@ -183,33 +189,60 @@ int gen_llvmir(Node *node){
             printf("ret void\n");
             return 0;
         }
-        load_value(son);
-        
+
         char *son_true_type = convert_type(son->true_type);
-        if(strcmp(curr_return_type, "i32") == 0 || strcmp(curr_return_type, "i1") == 0 )
-            printf("ret %s %%%d\n", curr_return_type, counter);
-        else {
-            if(strcmp(son_true_type, "i32") == 0){
-                printf("%%%d = uitofp i32 %%%d to double\n", counter + 1, counter);
-                print_double("%17");
-                printf("ret double %%%d\n", ++counter);
-            } 
-            else printf("ret double %%%d\n", counter);
+        char *op;
+        load_value(node->son, &op);
+
+        if(strcmp(curr_return_type, "i32") == 0 || strcmp(curr_return_type, "i1") == 0){
+            printf("ret %s %s, 0\n", son_true_type, op);
         }
-        return 0;
+        else{
+            if(strcmp(son_true_type, "i32") == 0){
+                printf("%%%d = uitofp i32 %s to double\n", ++counter, op);
+                op = (char *)realloc(op, sizeof(char)*(counter_size() + 3));
+                sprintf(op, "%%%d", counter);
+            }
+            printf("ret double %s\n", op);
+        }
+        free(op);
+        return 0;       
     }
     if(strcmp(node->type, "Assign") == 0){
-        Node *son = node->son;
-        load_value(son->bro);
+        Node *son = node->son, *other_son = son->bro;
         char *son_true_type = convert_type(son->true_type);
-        char *other_son_true_type = convert_type(son->bro->true_type);
-        if(strcmp(node->true_type, "int") == 0 || strcmp(node->true_type, "boolean") == 0 )
-            printf("%%%d = add %s %%%d, 0\n", update_var_counter(son->value), son_true_type, counter);
-        else {
-            if(strcmp(other_son_true_type, "i32") == 0) printf("%%%d = uitofp i32 %%%d to double\n", update_var_counter(son->value), counter);
-            else printf("%%%d = fadd double %%%d, 0.0\n", update_var_counter(son->value), counter);
+        char *other_son_true_type = convert_type(other_son->true_type);
+
+        if(strcmp(other_son->type, "Id") == 0){
+            update_var_counter(son->value, get_counter(other_son->value));
+            return 0;
+        } 
+
+        if(strcmp(other_son->type, "DecLit") == 0 || strcmp(other_son->type, "RealLit") == 0 || strcmp(other_son->type, "BoolLit") == 0){
+            char *op;
+            load_value(other_son, &op);
+            if(strcmp(son_true_type, "i32") == 0 || strcmp(son_true_type, "i1") == 0){
+                printf("%%%d = add %s %s, 0\n", update_var_counter(son->value, ++counter), son_true_type, op);
+            }
+            else{
+                if(strcmp(other_son_true_type, "i32") == 0) printf("%%%d = uitofp i32 %s to double\n", update_var_counter(son->value, ++counter), op);
+                else printf("%%%d = fadd double %s, 0.0\n", update_var_counter(son->value, ++counter), op);
+            }
+            free(op);
+            return 0;
         }
+        gen_llvmir(other_son);
+        update_var_counter(son->value, counter);
         return 0;
+    }
+    if(strcmp(node->type, "Print") == 0){
+        Node *son = node->son;
+        char *son_conv_type = convert_type(son->true_type);
+        char *op;
+        load_value(son, &op);
+        if(strcmp(son_conv_type, "i32") == 0) print_int(op);
+        else if(strcmp(son_conv_type, "double") == 0) print_double(op);
+        else if(strcmp(son_conv_type, "i1") == 0) print_boolean(op);
     }
     if(strcmp(node->type, "Add") == 0){
         two_son_int_double(node, "add", "fadd");
@@ -224,7 +257,7 @@ int gen_llvmir(Node *node){
         return 0;
     }
     if(strcmp(node->type, "Div") == 0){
-        two_son_int_double(node, "udiv", "fdiv");
+        two_son_int_double(node, "sdiv", "fdiv");
         return 0;
     }
     if(strcmp(node->type, "Mod") == 0){
@@ -244,48 +277,39 @@ int gen_llvmir(Node *node){
         return 0;
     }
     if (strcmp(node->type, "Not") == 0){
-        int counter_op;
-        load_value(node->son);
-        counter_op = counter;
-        printf("%%%d = xor i1 1, %%%d\n", ++counter, counter_op);
+        int count = 0;
+        Node *son = node->son;
+
+        char *op;
+        load_value(son, &op);
+
+        printf("%%%d = xor i1 1, %s\n", ++counter, op);
         return 0;
     }
     if(strcmp(node->type, "Plus") == 0){
         int count = 0;
-        Node *aux = node->son;
-        char *aux_true_type = convert_type(aux->true_type);
-        load_value(aux);
+        Node *son = node->son;
+        char *op;
+        load_value(son, &op);
+
+        if(strcmp(convert_type(son->true_type), "i32") == 0)
+            printf("%%%d = add i32 %s, 0\n", counter++, op);
+        else
+            printf("%%%d = fadd double %s, 0.0\n", counter++, op);
+
+        return 0;
     }
     if(strcmp(node->type, "Minus") == 0){
         int count = 0;
-        Node *aux = node->son;
-        char *aux_true_type = convert_type(aux->true_type);
-        if(strcmp(aux->type, "Id") == 0){
-            // Se o operando for uma variável
-            // Guarda-se o nome da variável (ex.: counter_op1 = "b")
-            if(strcmp(aux_true_type, "i32") == 0)
-                printf("%%%d = sub i32 0, %%%d\n", ++counter, get_counter(aux->value));
-            else
-                printf("%%%d = fsub double 0.0, %%%d\n", ++counter, get_counter(aux->value));
-        }
-        else if(strcmp(aux->type, "DecLit") == 0 || strcmp(aux->type, "RealLit") == 0){
-            // Se o operando for um número
-            // Guarda-se o valor do counter onde será guardado o número (ex.: counter_op1 = counter)
-            if(strcmp(aux->type, "DecLit") == 0)
-                printf("%%%d = sub i32 0, %%%d\n", ++counter, get_counter(aux->value));
-            else
-                printf("%%%d = fsub double 0.0, %%%d\n", ++counter, get_counter(aux->value));
-        }
-        else{
-            // Se o operando for uma operação
-            // Guarda-se o valor do counter onde foi guardado o valor da operação (ex.: counter_op1 = counter - 1)
-            gen_llvmir(node->son);
-            char *op_true_type = convert_type(node->son->true_type);
-            if(strcmp(op_true_type, "i32") == 0)
-                printf("%%%d = sub i32 0, %%%d\n", counter + 1, counter);
-            else
-                printf("%%%d = fsub double 0.0, %%%d\n", counter + 1, counter);
-        }
+        Node *son = node->son;
+        char *op;
+        load_value(son, &op);
+
+        if(strcmp(convert_type(son->true_type), "i32") == 0)
+            printf("%%%d = sub i32 %s, 0\n", counter++, op);
+        else
+            printf("%%%d = fsub double %s, 0.0\n", counter++, op);
+            
         return 0;
     }
     return 0;
