@@ -8,7 +8,7 @@ int gen_llvmir(Node *node);
 
 char *curr_return_type = NULL;
 VarCounter *var_counter = NULL;
-int counter = 0;
+int counter = 0, label_counter = 0;
 
 VarCounter* search_var_counter(char *var){
     for(VarCounter *aux = var_counter; aux; aux = aux->next)  
@@ -72,13 +72,24 @@ void print_boolean(char *s){
 }
 
 void print_int(char *i){
-    printf("tail call i32 (i8*, ...) @printf(i8* getelementptr ([3 x i8], [3 x i8]* @p_int, i64 0, i64 0), i32 %s)\n", i);
+    printf("tail call i32 (i8*, ...) @printf(i8* getelementptr ([3 x i8], [3 x i8]* @.int, i64 0, i64 0), i32 %s)\n", i);
     counter++;
 }
 
 void print_double(char *d){
-    printf("tail call i32 (i8*, ...) @printf(i8* getelementptr ([6 x i8], [6 x i8]* @p_double, i64 0, i64 0), double %s)\n", d);
+    printf("tail call i32 (i8*, ...) @printf(i8* getelementptr ([6 x i8], [6 x i8]* @.double, i64 0, i64 0), double %s)\n", d);
     counter++;
+}
+
+void print_string(Node *node){
+    int len = strlen(node->value) - 1;
+    char * val = strdup(node->value + 1);
+    val[len - 1] = 0;
+    printf("%%%d = alloca [%d x i8]\n", ++counter, len);
+    printf("store [%d x i8] c\"%s\\00\", [6 x i8]\n* %%%d", len, val, counter);
+    printf("%%%d = getelementptr [%d x i8], [%d x i8]* %%%d, i64 0, i64 0\n", ++counter, len, len, counter);
+    printf("call i32 @puts(i8* %%%d)\n", counter);
+    free(val);
 }
 
 void print_func(Node *node){
@@ -99,7 +110,7 @@ void print_func(Node *node){
         printf("%s %%%d", type, get_counter(value));
     }
     printf(") {\n");
-
+    //printf("entry.%d:\n", label_counter);
 }
 
 void load_value(Node *node, char **op){
@@ -272,6 +283,7 @@ int gen_llvmir(Node *node){
         if(strcmp(son_conv_type, "i32") == 0) print_int(op);
         else if(strcmp(son_conv_type, "double") == 0) print_double(op);
         else if(strcmp(son_conv_type, "i1") == 0) print_boolean(op);
+        else if(strcmp(son->true_type, "String") == 0) print_string(node->son);
     }
     if(strcmp(node->type, "Add") == 0){
         two_son_int_double(node, "add", "fadd");
@@ -361,16 +373,51 @@ int gen_llvmir(Node *node){
         two_son_cmp(node, "ne");
     }
     if (strcmp(node->type, "Lt") == 0){
-        two_son_cmp(node, "ult");
+        two_son_cmp(node, "slt");
     }
     if (strcmp(node->type, "Gt") == 0){
-        two_son_cmp(node, "ugt");
+        two_son_cmp(node, "sgt");
     }
     if (strcmp(node->type, "Le") == 0){
-        two_son_cmp(node, "ule");
+        two_son_cmp(node, "sle");
     }
     if (strcmp(node->type, "Ge") == 0){
-        two_son_cmp(node, "uge");
+        two_son_cmp(node, "sge");
+    }
+    if (strcmp(node->type, "If") == 0){
+        label_counter++;
+        printf("br label entry.%d\n", label_counter);
+        printf("entry.%d:\n", label_counter);
+        gen_llvmir(node->son);
+        printf("br i1 %%%d, label %%then.%d, label %%else.%d\n\n", counter, label_counter, label_counter);
+        printf("%%then.%d:\n", label_counter);
+        gen_llvmir(node->son->bro);
+        printf("br label %%ifcont.%d\n\n", label_counter);
+        printf("%%else.%d:\n", label_counter);
+        gen_llvmir(node->son->bro->bro);
+        printf("br label %%ifcont.%d\n\n", label_counter);
+        printf("%%cond.%d:\n", label_counter);
+    }
+    if (strcmp(node->type, "While") == 0){
+        label_counter++;
+        printf("br label %%entry.%d\n", label_counter);
+        printf("entry.%d:\n", label_counter);
+        gen_llvmir(node->son);
+        printf("br i1 %%%d, label %%body.%d, label %%exit.%d\n", counter, label_counter, label_counter);
+        printf("body.%d:\n", label_counter);
+        gen_llvmir(node->son->bro);
+        printf("br label %%cond.%d\n", label_counter);
+        printf("cond.%d:\n", label_counter);
+        gen_llvmir(node->son);
+        printf("br i1 %%%d, label %%body.%d, label %%exit.%d\n", counter, label_counter, label_counter);
+        printf("exit.%d:\n", label_counter);
+        return 0;
+    }
+    if(strcmp(node->type, "Block") == 0){
+        for(Node *aux = node->son; aux; aux = aux->bro){
+            gen_llvmir(aux);
+        }
+        return 0;
     }
     return 0;
 }
@@ -379,10 +426,12 @@ int setup_llvmir(){
     printf("@.false = private unnamed_addr constant [6 x i8] c\"false\\00\"\n");
     printf("@.true = private unnamed_addr constant [5 x i8] c\"true\\00\"\n");
     printf("@.booleans = dso_local global [2 x i8*] [i8* getelementptr ([6 x i8], [6 x i8]* @.false, i32 0, i32 0), i8* getelementptr ([5 x i8], [5 x i8]* @.true, i32 0, i32 0)]\n");
-    printf("@p_int = private unnamed_addr constant [3 x i8] c\"%%d\\00\"\n");
-    printf("@p_double = private unnamed_addr constant [6 x i8] c\"%%.16e\\00\"\n");
+    printf("@.int = private unnamed_addr constant [3 x i8] c\"%%d\\00\"\n");
+    printf("@.double = private unnamed_addr constant [6 x i8] c\"%%.16e\\00\"\n");
+    printf("@.string = private constant [4 x i8] c\"%%s\\0A\\00\"\n");
     printf("\ndeclare i32 @printf(i8* nocapture readonly, ...) nounwind\n");
     printf("\ndeclare i32 @atoi(i8* nocapture readonly) nounwind\n");
+    printf("\ndeclare i32 @puts(i8* nocapture) nounwind\n");
     printf("\ndefine void @.print_boolean(i1 %%.boolean) {\n");
     printf("%%1 = zext i1 %%.boolean to i32\n");
     printf("%%2 = getelementptr [2 x i8*], [2 x i8*]* @.booleans, i32 0, i32 %%1\n");
