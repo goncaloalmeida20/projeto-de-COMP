@@ -4,8 +4,8 @@
 #include "tree.h"
 
 typedef struct _var_counter{
-    char * name;
-    int counter;
+    char *name;
+    char *counter;
     struct _var_counter *next;
 } VarCounter;
 

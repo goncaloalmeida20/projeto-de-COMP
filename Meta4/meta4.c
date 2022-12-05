@@ -10,54 +10,58 @@ char *curr_return_type = NULL;
 VarCounter *var_counter = NULL;
 int counter = 0, label_counter = 0;
 
+
+int counter_size(){
+    int aux = counter, size = 0;
+    for(; aux > 0; aux /= 10, size++);
+    return size;
+}
+
 VarCounter* search_var_counter(char *var){
     for(VarCounter *aux = var_counter; aux; aux = aux->next)  
         if(strcmp(var, aux->name) == 0) return aux;
     return NULL;
 }
 
-int update_var_counter(char *var, int cnt){
+int create_var_counter(char *var, int cnt){
     VarCounter *new_var = search_var_counter(var);
+    if(new_var) printf("ERRO CREATE_VAR_COUNTER\n");
+    new_var = (VarCounter *) malloc(sizeof(VarCounter));
     if(!new_var){
-        new_var = (VarCounter *) malloc(sizeof(VarCounter));
-        if(!new_var){
-            printf("ERRO MALLOC INSERT_VAR_COUNTER\n");
-            return -1;
-        }
-        new_var->name = strdup(var);
-        new_var->counter = cnt;
-
-        if(!var_counter){
-            new_var->next = NULL;
-            var_counter = new_var;
-            return cnt;
-        } 
-        
-        VarCounter *aux, *previous;
-        for(aux = var_counter; aux; previous = aux, aux = aux->next);
-        previous->next = new_var;
-        return cnt;
+        printf("ERRO MALLOC INSERT_VAR_COUNTER\n");
+        return -1;
     }
-    new_var->counter = cnt;
+    new_var->name = strdup(var);
+    if(cnt < 0){
+        new_var->counter = (char*) malloc(sizeof(char)*(strlen(var)+2));
+        sprintf(new_var->counter, "@%s", var);
+    }
+    else{
+        new_var->counter = (char*) malloc(sizeof(char)*(counter_size()+3));
+        sprintf(new_var->counter, "%%%d", cnt);
+    } 
+    if(!var_counter){
+        new_var->next = NULL;
+        var_counter = new_var;
+        return cnt;
+    } 
+    
+    VarCounter *aux, *previous;
+    for(aux = var_counter; aux; previous = aux, aux = aux->next);
+    previous->next = new_var;
     return cnt;
 }
 
-int get_counter(char *var){
+char* get_counter(char *var){
     VarCounter *vc = search_var_counter(var);
-    if(!vc) return update_var_counter(var, counter++);
     return vc->counter;
 }
 
 void free_var_counter(VarCounter *vc){
     if(!vc) return;
     free_var_counter(vc->next);
+    free(vc->counter);
     free(vc);
-}
-
-int counter_size(){
-    int aux = counter, size = 0;
-    for(; aux > 0; aux /= 10, size++);
-    return size;
 }
 
 char * convert_type(char * s){
@@ -81,14 +85,14 @@ void print_double(char *d){
     counter++;
 }
 
-void print_string(Node *node){
-    int len = strlen(node->value) - 1;
-    char * val = strdup(node->value + 1);
+void print_string(char *s){
+    int len = strlen(s) - 1;
+    char * val = strdup(s + 1);
     val[len - 1] = 0;
     printf("%%%d = alloca [%d x i8]\n", ++counter, len);
-    printf("store [%d x i8] c\"%s\\00\", [6 x i8]\n* %%%d", len, val, counter);
+    printf("store [%d x i8] c\"%s\\00\", [%d x i8]* %%%d\n", len, val, len, counter);
     printf("%%%d = getelementptr [%d x i8], [%d x i8]* %%%d, i64 0, i64 0\n", ++counter, len, len, counter);
-    printf("call i32 @puts(i8* %%%d)\n", counter);
+    printf("tail call i32 (i8*, ...) @printf(i8* getelementptr ([3 x i8], [3 x i8]* @.string, i64 0, i64 0), i8* %%%d)\n", counter++);
     free(val);
 }
 
@@ -107,10 +111,11 @@ void print_func(Node *node){
         if(aux != params) printf(", ");
         char *type = convert_type(aux->son->type);
         char *value = aux->son->son->value;
-        printf("%s %%%d", type, get_counter(value));
+        create_var_counter(value, ++counter);
+        printf("%s %s", type, get_counter(value));
     }
     printf(") {\n");
-    //printf("entry.%d:\n", label_counter);
+
 }
 
 void load_value(Node *node, char **op){
@@ -121,12 +126,11 @@ void load_value(Node *node, char **op){
     }
     
     if(strcmp(node->type, "Id") == 0){
-        *op = (char *)malloc(sizeof(char)*(counter_size() + 3)); // \0->+1 %%->+2
-        sprintf(*op, "%%%d", get_counter(node->value));
-        return;
-    } 
-
-    gen_llvmir(node);
+        char *node_conv_type = convert_type(node->true_type);
+        printf("%%%d = load %s, %s* %s\n", ++counter, node_conv_type, node_conv_type, get_counter(node->value));
+    }
+    else gen_llvmir(node);
+    
     *op = (char *)malloc(sizeof(char)*(counter_size() + 3)); // \0->+1 %%->+2
     sprintf(*op, "%%%d", counter);
 }
@@ -223,6 +227,18 @@ int gen_llvmir(Node *node){
         var_counter = NULL;
         return 0;
     }
+    if(strcmp(node->type, "FieldDecl") == 0){
+        Node *son = node->son, *other_son = son->bro;
+        char *conv_type = convert_type(son->type);
+        create_var_counter(other_son->value, -1);
+        printf("%s global %s 0", get_counter(other_son->value), conv_type);
+    }
+    if(strcmp(node->type, "VarDecl") == 0){
+        Node *son = node->son, *other_son = son->bro;
+        char *conv_type = convert_type(son->type);
+        create_var_counter(other_son->value, ++counter);
+        printf("%s = alloca %s\n", get_counter(other_son->value), conv_type);
+    }
     if(strcmp(node->type, "Return") == 0){
         Node *son = node->son;
         if(son == NULL){
@@ -253,37 +269,27 @@ int gen_llvmir(Node *node){
         char *son_true_type = convert_type(son->true_type);
         char *other_son_true_type = convert_type(other_son->true_type);
 
-        if(strcmp(other_son->type, "Id") == 0){
-            update_var_counter(son->value, get_counter(other_son->value));
-            return 0;
-        } 
+        char *op;
+        load_value(other_son, &op);
 
-        if(strcmp(other_son->type, "DecLit") == 0 || strcmp(other_son->type, "RealLit") == 0 || strcmp(other_son->type, "BoolLit") == 0){
-            char *op;
-            load_value(other_son, &op);
-            if(strcmp(son_true_type, "i32") == 0 || strcmp(son_true_type, "i1") == 0){
-                printf("%%%d = add %s %s, 0\n", update_var_counter(son->value, ++counter), son_true_type, op);
-            }
-            else{
-                if(strcmp(other_son_true_type, "i32") == 0) printf("%%%d = uitofp i32 %s to double\n", update_var_counter(son->value, ++counter), op);
-                else printf("%%%d = fadd double %s, 0.0\n", update_var_counter(son->value, ++counter), op);
-            }
-            free(op);
-            return 0;
+        if(strcmp(son_true_type, "double") == 0 && strcmp(other_son_true_type, "i32") == 0){
+            printf("%%%d = uitofp i32 %s to double\n", ++counter, op);
+            printf("store %s %%%d, %s* %s\n", son_true_type, counter, son_true_type, get_counter(son->value));
         }
-        gen_llvmir(other_son);
-        update_var_counter(son->value, counter);
+        else printf("store %s %s, %s* %s\n", son_true_type, op, son_true_type, get_counter(son->value));
+
         return 0;
     }
     if(strcmp(node->type, "Print") == 0){
         Node *son = node->son;
+        if(strcmp(son->true_type, "String") == 0) print_string(node->son->value);
+
         char *son_conv_type = convert_type(son->true_type);
         char *op;
         load_value(son, &op);
         if(strcmp(son_conv_type, "i32") == 0) print_int(op);
         else if(strcmp(son_conv_type, "double") == 0) print_double(op);
         else if(strcmp(son_conv_type, "i1") == 0) print_boolean(op);
-        else if(strcmp(son->true_type, "String") == 0) print_string(node->son);
     }
     if(strcmp(node->type, "Add") == 0){
         two_son_int_double(node, "add", "fadd");
@@ -385,32 +391,29 @@ int gen_llvmir(Node *node){
         two_son_cmp(node, "sge");
     }
     if (strcmp(node->type, "If") == 0){
-        label_counter++;
-        printf("br label entry.%d\n", label_counter);
-        printf("entry.%d:\n", label_counter);
+        int temp_label_counter = ++label_counter;
+        printf("br label %%entry.%d\n", temp_label_counter);
+        printf("entry.%d:\n", temp_label_counter);
         gen_llvmir(node->son);
-        printf("br i1 %%%d, label %%then.%d, label %%else.%d\n\n", counter, label_counter, label_counter);
-        printf("%%then.%d:\n", label_counter);
+        printf("br i1 %%%d, label %%then.%d, label %%else.%d\n\n", counter, temp_label_counter, temp_label_counter);
+        printf("then.%d:\n", temp_label_counter);
         gen_llvmir(node->son->bro);
-        printf("br label %%ifcont.%d\n\n", label_counter);
-        printf("%%else.%d:\n", label_counter);
+        printf("br label %%ifcont.%d\n\n", temp_label_counter);
+        printf("else.%d:\n", temp_label_counter);
         gen_llvmir(node->son->bro->bro);
-        printf("br label %%ifcont.%d\n\n", label_counter);
-        printf("%%cond.%d:\n", label_counter);
+        printf("br label %%ifcont.%d\n\n", temp_label_counter);
+        printf("ifcont.%d:\n", temp_label_counter);
     }
     if (strcmp(node->type, "While") == 0){
-        label_counter++;
-        printf("br label %%entry.%d\n", label_counter);
-        printf("entry.%d:\n", label_counter);
+        int temp_label_counter = ++label_counter;
+        printf("br label %%entry.%d\n", temp_label_counter);
+        printf("entry.%d:\n", temp_label_counter);
         gen_llvmir(node->son);
-        printf("br i1 %%%d, label %%body.%d, label %%exit.%d\n", counter, label_counter, label_counter);
-        printf("body.%d:\n", label_counter);
+        printf("br i1 %%%d, label %%body.%d, label %%exit.%d\n", counter, temp_label_counter, temp_label_counter);
+        printf("body.%d:\n", temp_label_counter);
         gen_llvmir(node->son->bro);
-        printf("br label %%cond.%d\n", label_counter);
-        printf("cond.%d:\n", label_counter);
-        gen_llvmir(node->son);
-        printf("br i1 %%%d, label %%body.%d, label %%exit.%d\n", counter, label_counter, label_counter);
-        printf("exit.%d:\n", label_counter);
+        printf("br label %%entry.%d\n", temp_label_counter);
+        printf("exit.%d:\n", temp_label_counter);
         return 0;
     }
     if(strcmp(node->type, "Block") == 0){
@@ -428,7 +431,7 @@ int setup_llvmir(){
     printf("@.booleans = dso_local global [2 x i8*] [i8* getelementptr ([6 x i8], [6 x i8]* @.false, i32 0, i32 0), i8* getelementptr ([5 x i8], [5 x i8]* @.true, i32 0, i32 0)]\n");
     printf("@.int = private unnamed_addr constant [3 x i8] c\"%%d\\00\"\n");
     printf("@.double = private unnamed_addr constant [6 x i8] c\"%%.16e\\00\"\n");
-    printf("@.string = private constant [4 x i8] c\"%%s\\0A\\00\"\n");
+    printf("@.string = private constant [3 x i8] c\"%%s\\00\"\n");
     printf("\ndeclare i32 @printf(i8* nocapture readonly, ...) nounwind\n");
     printf("\ndeclare i32 @atoi(i8* nocapture readonly) nounwind\n");
     printf("\ndeclare i32 @puts(i8* nocapture) nounwind\n");
