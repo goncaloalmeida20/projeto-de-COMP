@@ -10,6 +10,58 @@ char *curr_return_type = NULL;
 VarCounter *var_counter = NULL;
 int counter = 0, label_counter = 0;
 
+char* conv_escape(char *s, int *esc_counter){
+    *esc_counter = 0;
+    char *aux, *new_aux;
+    for(aux = s; *aux; aux++){
+        if(*aux == '\\' && aux+1 && *(aux+1) == '\\'){
+            (*esc_counter)++;
+            aux++;
+        }
+        else if(*aux == '\\') (*esc_counter)++;
+    }
+    char *new_s = (char*) malloc(sizeof(char) * (strlen(s) + 1 + *esc_counter));
+    if(!new_s){
+        printf("ERROR MALLOC CONV ESC\n");
+        return NULL;
+    }
+    for(aux = s + 1, new_aux = new_s; *aux; aux++){
+        if(*aux == '\\'){
+            *new_aux++ = *aux++;
+            switch(*aux){
+                case 'f':
+                    *new_aux++ = '0';
+                    *new_aux++ = 'C';
+                    break;
+                case 'n':
+                    *new_aux++ = '0';
+                    *new_aux++ = 'A';
+                    break;
+                case 'r':
+                    *new_aux++ = '0';
+                    *new_aux++ = 'D';
+                    break;
+                case 't':
+                    *new_aux++ = '0';
+                    *new_aux++ = '9';
+                    break;
+                case '\\':
+                    *new_aux++ = '\\';
+                    break;
+                case '\"':
+                    *new_aux++ = '\"';
+                    break;
+                default:
+                    printf("ERROR CONV ESC SWITCH\n");
+            }
+        }
+        else *new_aux++ = *aux;
+    }
+    *new_aux = 0;
+    free(s);
+    new_s[strlen(new_s)-1] = 0;
+    return new_s;
+}
 
 int counter_size(){
     int aux = counter, size = 0;
@@ -85,10 +137,10 @@ void print_double(char *d){
     counter++;
 }
 
-void print_string(char *s){
-    int len = strlen(s) - 1;
-    char * val = strdup(s + 1);
-    val[len - 1] = 0;
+void print_string(char *s){ 
+    int esc_count = 0;
+    char *val = conv_escape(s, &esc_count);
+    int len = strlen(val) - 2 * esc_count + 1;
     printf("%%%d = alloca [%d x i8]\n", ++counter, len);
     printf("store [%d x i8] c\"%s\\00\", [%d x i8]* %%%d\n", len, val, len, counter);
     printf("%%%d = getelementptr [%d x i8], [%d x i8]* %%%d, i64 0, i64 0\n", ++counter, len, len, counter);
@@ -118,13 +170,47 @@ void print_func(Node *node){
 
 }
 
+char* convert_int_double(char *num){
+    char *val = strdup(num);
+
+    char *i = val, *j = val;
+
+    int has_dot=0;
+    int e = 0;
+
+    for(; *i; i++){
+        if(*i == 'e' || *i == 'E') e = 1;
+        else if(*i == '.' && !e) has_dot = 1;
+        if(*i != '_'){
+            *j = *i;
+            j++;
+        }
+    }
+    *j = 0;
+    if(!has_dot && e){
+        char *new_num=(char *) malloc(sizeof(char) * (strlen(val) + 2));
+        j = new_num;
+        i = val;
+        for(;*i;i++){
+            if(*i == 'e' || *i == 'E') *j++ = '.';
+            *j++ = *i;
+        }
+        *j = 0;
+        return new_num;
+    }
+    return val;
+}
+
 void load_value(Node *node, char **op){
     if(!node) return;
-    if(strcmp(node->type, "DecLit") == 0 || strcmp(node->type, "RealLit") == 0 || strcmp(node->type, "BoolLit") == 0){
+    if(strcmp(node->type, "DecLit") == 0 || strcmp(node->type, "RealLit") == 0){
+        *op = convert_int_double(strdup(node->value));
+        return;
+    }
+    if( strcmp(node->type, "BoolLit") == 0){
         *op = strdup(node->value);
         return;
     }
-    
     if(strcmp(node->type, "Id") == 0){
         char *node_conv_type = convert_type(node->true_type);
         printf("%%%d = load %s, %s* %s\n", ++counter, node_conv_type, node_conv_type, get_counter(node->value));
