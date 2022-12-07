@@ -8,7 +8,7 @@ int gen_llvmir(Node *node);
 
 char *curr_return_type = NULL;
 VarCounter *var_counter = NULL;
-int counter = 0, label_counter = 0;
+int counter = -1, label_counter = 0;
 
 char* conv_escape(char *s, int *esc_counter){
     *esc_counter = 0;
@@ -120,6 +120,7 @@ char * convert_type(char * s){
     if (strcmp(s, "Bool") == 0 || strcmp(s, "boolean") == 0 || strcmp(s, "BoolLit") == 0) return "i1";
     else if (strcmp(s, "Double") == 0 || strcmp(s, "double") == 0 || strcmp(s, "RealLit") == 0) return "double";
     else if (strcmp(s, "Int") == 0 || strcmp(s, "int") == 0 || strcmp(s, "DecLit") == 0) return "i32";
+    else if (strcmp(s, "StringArray") == 0 || strcmp(s, "String[]") == 0) return "i8**";
     else return "void";
 }
 
@@ -154,15 +155,17 @@ void print_func(Node *node){
     curr_return_type = strdup(method_type);
     printf("\ndefine %s @%s", method_type, method_name);
     Node *aux, *params = node->son->bro->bro->son;
-    for(aux = params; aux; aux = aux->bro){
-        char *type = convert_type(aux->son->type);
-        printf("_%s", type);
+    if(!params) printf("_void");
+    else{
+        for(aux = params; aux; aux = aux->bro){
+            printf("_%s", aux->son->type);
+        }
     } 
     printf("(");
     for(aux = params; aux; aux = aux->bro){
         if(aux != params) printf(", ");
         char *type = convert_type(aux->son->type);
-        char *value = aux->son->son->value;
+        char *value = aux->son->bro->value;
         create_var_counter(value, ++counter);
         printf("%s %s", type, get_counter(value));
     }
@@ -305,8 +308,10 @@ int gen_llvmir(Node *node){
         Node *method_header = node->son, *method_body = method_header->bro;
         var_counter = NULL;
         print_func(method_header);
+        counter++;
         for(Node *aux = method_body->son; aux; aux = aux->bro)
             gen_llvmir(aux);
+        if(strcmp(curr_return_type, "void") == 0) printf("ret void\n");
         printf("}\n");
         curr_return_type = NULL;
         free_var_counter(var_counter);
@@ -317,7 +322,7 @@ int gen_llvmir(Node *node){
         Node *son = node->son, *other_son = son->bro;
         char *conv_type = convert_type(son->type);
         create_var_counter(other_son->value, -1);
-        printf("%s global %s 0", get_counter(other_son->value), conv_type);
+        printf("%s = global %s 0", get_counter(other_son->value), conv_type);
     }
     if(strcmp(node->type, "VarDecl") == 0){
         Node *son = node->son, *other_son = son->bro;
@@ -337,7 +342,7 @@ int gen_llvmir(Node *node){
         load_value(node->son, &op);
 
         if(strcmp(curr_return_type, "i32") == 0 || strcmp(curr_return_type, "i1") == 0){
-            printf("ret %s %s, 0\n", son_true_type, op);
+            printf("ret %s %s\n", son_true_type, op);
         }
         else{
             if(strcmp(son_true_type, "i32") == 0){
@@ -518,9 +523,9 @@ int setup_llvmir(){
     printf("@.int = private unnamed_addr constant [3 x i8] c\"%%d\\00\"\n");
     printf("@.double = private unnamed_addr constant [6 x i8] c\"%%.16e\\00\"\n");
     printf("@.string = private constant [3 x i8] c\"%%s\\00\"\n");
+    printf("@.argc = global i32 0");
     printf("\ndeclare i32 @printf(i8* nocapture readonly, ...) nounwind\n");
     printf("\ndeclare i32 @atoi(i8* nocapture readonly) nounwind\n");
-    printf("\ndeclare i32 @puts(i8* nocapture) nounwind\n");
     printf("\ndefine void @.print_boolean(i1 %%.boolean) {\n");
     printf("%%1 = zext i1 %%.boolean to i32\n");
     printf("%%2 = getelementptr [2 x i8*], [2 x i8*]* @.booleans, i32 0, i32 %%1\n");
@@ -528,18 +533,14 @@ int setup_llvmir(){
     printf("tail call i32 (i8*, ...) @printf(i8* %%3)\n");
     printf("ret void\n}\n");
 
-    int found_main = 0;
-    for(TableElement *aux = global_symtab->symbols; aux; aux = aux->next){
-        if(strcmp(aux->name, "main") == 0 && aux->params){
-            found_main = 1;
-            break;
-        } 
-    }
-    if(!found_main){
-        printf("\ndefine void @main() {\nret void\n}\n");
-    }
-    //printf("\ndefine i32 @main() {\n");
     gen_llvmir(root);
+
+    
+    printf("\ndefine i32 @main(i32 %%0, i8** %%1) {\n");
+    printf("store i32 %%0, i32* @.argc\n");
+    printf("call void @main_StringArray(i8** %%1)\nret i32 0\n}\n");
+    //printf("\ndefine i32 @main() {\n");
+    
     //print_boolean("%6");
     //printf("ret i32 0\n}\n");
     
