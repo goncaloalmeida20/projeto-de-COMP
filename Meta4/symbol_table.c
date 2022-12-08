@@ -244,6 +244,7 @@ int init_global_symtab(){
 	global_symtab->params = NULL;
 	global_symtab->symbols = NULL;
 	global_symtab->next = NULL;
+	global_symtab->type = NULL;
 	return 1;
 }
 

@@ -69,10 +69,11 @@ int counter_size(){
 }
 
 VarCounter* search_var_counter(char *var){
-    for(VarCounter *aux = var_counter_global; aux; aux = aux->next){
+    for(VarCounter *aux = var_counter; aux; aux = aux->next){
         if(strcmp(var, aux->name) == 0) return aux;
     }
-    for(VarCounter *aux = var_counter; aux; aux = aux->next){
+
+    for(VarCounter *aux = var_counter_global; aux; aux = aux->next){
         if(strcmp(var, aux->name) == 0) return aux;
     }
         
@@ -80,9 +81,7 @@ VarCounter* search_var_counter(char *var){
 }
 
 int create_var_counter(char *var, int cnt){
-    VarCounter *new_var = search_var_counter(var);
-    if(new_var) printf("ERRO CREATE_VAR_COUNTER\n");
-    new_var = (VarCounter *) malloc(sizeof(VarCounter));
+    VarCounter* new_var = (VarCounter *) malloc(sizeof(VarCounter));
     if(!new_var){
         printf("ERRO MALLOC INSERT_VAR_COUNTER\n");
         return -1;
@@ -137,6 +136,19 @@ char * convert_type(char * s){
     else return "void";
 }
 
+void init_global_vars(){
+    for(TableElement *aux = global_symtab->symbols; aux; aux = aux->next){
+        if(!aux->params){
+            char *conv_type = convert_type(aux->type);
+            create_var_counter(aux->name, -1);
+            if(strcmp(conv_type, "double") == 0) 
+                printf("%s = global double 0.0\n", get_counter(aux->name));
+            else
+                printf("%s = global %s 0\n", get_counter(aux->name), conv_type);
+        }
+    }
+}
+
 void print_boolean(char *s){
     printf("call void @.print_boolean(i1 %s)\n", s);
 }
@@ -159,6 +171,7 @@ void init_strings(){
         val = conv_escape(aux->value, &esc_count);
         aux->len = strlen(val) - 2 * esc_count + 1;
         printf("@.str.%d = private unnamed_addr constant [%d x i8] c\"%s\\00\"\n", aux->string_id, aux->len, val);
+        free(val);
     }
 }
 
@@ -166,6 +179,7 @@ void print_string(char *s){
     Str *full_str = search_string(s);
     int s_len = full_str->len, s_id = full_str->string_id;
     printf("tail call i32 (i8*, ...) @printf(i8* getelementptr ([%d x i8], [%d x i8]* @.str.%d, i64 0, i64 0))\n", s_len, s_len, s_id);
+    counter++;
 }
 
 void print_func(Node *node){
@@ -226,6 +240,7 @@ char* convert_int_double(char *num){
             *j++ = *i;
         }
         *j = 0;
+        free(val);
         return new_num;
     }
     return val;
@@ -234,7 +249,7 @@ char* convert_int_double(char *num){
 void load_value(Node *node, char **op){
     if(!node) return;
     if(strcmp(node->type, "DecLit") == 0 || strcmp(node->type, "RealLit") == 0){
-        *op = convert_int_double(strdup(node->value));
+        *op = convert_int_double(node->value);
         return;
     }
     if(strcmp(node->type, "BoolLit") == 0){
@@ -345,7 +360,7 @@ int gen_llvmir(Node *node){
         var_counter = NULL;
         return 0;
     }
-    if(strcmp(node->type, "FieldDecl") == 0){
+    /*if(strcmp(node->type, "FieldDecl") == 0){
         Node *son = node->son, *other_son = son->bro;
         char *conv_type = convert_type(son->type);
         create_var_counter(other_son->value, -1);
@@ -353,7 +368,7 @@ int gen_llvmir(Node *node){
             printf("%s = global double 0.0\n", get_counter(other_son->value));
         else
             printf("%s = global %s 0\n", get_counter(other_son->value), conv_type);
-    }
+    }*/
     if(strcmp(node->type, "VarDecl") == 0){
         Node *son = node->son, *other_son = son->bro;
         char *conv_type = convert_type(son->type);
@@ -396,6 +411,7 @@ int gen_llvmir(Node *node){
             printf("store %s %%%d, %s* %s\n", son_true_type, counter, son_true_type, get_counter(son->value));
         }
         else printf("store %s %s, %s* %s\n", son_true_type, op, son_true_type, get_counter(son->value));
+        free(op);
         return 0;
     }
     if(strcmp(node->type, "Print") == 0){
@@ -407,6 +423,8 @@ int gen_llvmir(Node *node){
         if(strcmp(son_conv_type, "i32") == 0) print_int(op);
         else if(strcmp(son_conv_type, "double") == 0) print_double(op);
         else if(strcmp(son_conv_type, "i1") == 0) print_boolean(op);
+        free(op);
+        return 0;
     }
     if(strcmp(node->type, "Add") == 0){
         two_son_int_double(node, "add", "fadd");
@@ -510,9 +528,9 @@ int gen_llvmir(Node *node){
     if (strcmp(node->type, "If") == 0){
         int temp_label_counter = ++label_counter;
         printf("br label %%entry.%d\n", temp_label_counter);
-        printf("entry.%d:\n", temp_label_counter);
+        printf("\nentry.%d:\n", temp_label_counter);
         gen_llvmir(node->son);
-        printf("br i1 %%%d, label %%then.%d, label %%else.%d\n\n", counter, temp_label_counter, temp_label_counter);
+        printf("br i1 %%%d, label %%then.%d, label %%else.%d\n", counter, temp_label_counter, temp_label_counter);
         printf("then.%d:\n", temp_label_counter);
         gen_llvmir(node->son->bro);
         printf("br label %%ifcont.%d\n\n", temp_label_counter);
@@ -524,7 +542,7 @@ int gen_llvmir(Node *node){
     if (strcmp(node->type, "While") == 0){
         int temp_label_counter = ++label_counter;
         printf("br label %%entry.%d\n", temp_label_counter);
-        printf("entry.%d:\n", temp_label_counter);
+        printf("\nentry.%d:\n", temp_label_counter);
         gen_llvmir(node->son);
         printf("br i1 %%%d, label %%body.%d, label %%exit.%d\n", counter, temp_label_counter, temp_label_counter);
         printf("body.%d:\n", temp_label_counter);
@@ -551,6 +569,7 @@ int gen_llvmir(Node *node){
         counter++;
         printf("%%%d = call i32 @atoi(i8* noundef %%%d)\n", counter + 1, counter);
         counter++;
+        return 0;
     }
     return 0;
 }
@@ -564,7 +583,7 @@ int setup_llvmir(){
     printf("@.string = private constant [3 x i8] c\"%%s\\00\"\n");
     printf("@.argc = global i32 0\n\n");
     init_strings();
-    //free_string();
+    init_global_vars();
     printf("\ndeclare i32 @printf(i8* nocapture readonly, ...) nounwind");
     printf("\ndeclare i32 @atoi(i8* nocapture readonly) nounwind\n");
     printf("\ndefine void @.print_boolean(i1 %%.boolean) {\n");

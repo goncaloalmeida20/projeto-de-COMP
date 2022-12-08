@@ -165,10 +165,11 @@ int create_string(char *value){
     return new_string->string_id;
 }
 
-void free_string(){
-    if(!string_list) return;
-    free_string(string_list->next);
-    free(string_list);
+void free_string(Str *str){
+    if(!str) return;
+    free_string(str->next);
+    free(str->value);
+    free(str);
 }
 
 char* check(Node *node){
@@ -476,6 +477,7 @@ int semantics_check(){
 }
 
 void free_tables(){
+    free_string(string_list);
     free_sym_tab(symtab_list);
     free_sym_tab(global_symtab);
 }
