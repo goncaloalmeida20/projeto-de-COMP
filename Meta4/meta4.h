@@ -2,6 +2,7 @@
 #define META4_H
 
 #include "tree.h"
+#include "semantics.h"
 
 typedef struct _var_counter{
     char *name;

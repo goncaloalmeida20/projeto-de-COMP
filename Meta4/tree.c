@@ -16,6 +16,7 @@ Node* create_node(char *type, char *value, int line, int col, char *true_type) {
     if (node == NULL) {printf("ERRO MEMÓRIA\n"); exit(0);} // No memory
 
     node->print_true_type = 0;
+    node->string_id = 0;
     node->check_node = 1;
     node->params = NULL;
     node->type = strdup(type);
