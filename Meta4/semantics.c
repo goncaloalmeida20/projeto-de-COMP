@@ -8,7 +8,8 @@
 char *scope = NULL;
 char *return_type = NULL;
 Param *curr_params = NULL;
-int error = 0;
+Str *string_list = NULL;
+int error = 0, string_id = 0;
 
 void error_out_of_bounds(char *value, Node *pos){
     if(!error) error = 1;
@@ -130,6 +131,44 @@ void declare_var(Node *node){
         }
         if(!insert_el(id_node->value, type_node->true_type, scope, curr_params))
             error_already_defined(NULL, id_node->value, id_node);
+}
+
+Str* search_string(char *value){
+    for(Str *aux = string_list; aux; aux = aux->next){
+        if(strcmp(value, aux->value) == 0) return aux;
+    }
+    return NULL;
+}
+
+int create_string(char *value){
+    Str *new_string = search_string(value);
+    if(new_string) return new_string->string_id;
+    new_string = (Str *) malloc(sizeof(Str));
+    if(!new_string){
+        printf("ERRO MALLOC INSERT_NEW_STRING\n");
+        return -1;
+    }
+    
+    new_string->len = 0;
+    new_string->string_id = string_id++;
+    new_string->value = strdup(value);
+    new_string->next = NULL;
+
+    if(!string_list){
+        string_list = new_string;
+        return new_string->string_id;
+    } 
+    
+    Str *aux, *previous;
+    for(aux = string_list; aux; previous = aux, aux = aux->next);
+    previous->next = new_string;
+    return new_string->string_id;
+}
+
+void free_string(){
+    if(!string_list) return;
+    free_string(string_list->next);
+    free(string_list);
 }
 
 char* check(Node *node){
@@ -413,6 +452,7 @@ char* check(Node *node){
     if(strcmp(node->type, "StrLit") == 0){
         node->true_type = strdup("String");
         node->print_true_type = 1;
+        create_string(node->value);
         return "String";
     }
     if(strcmp(node->type, "Id") == 0){

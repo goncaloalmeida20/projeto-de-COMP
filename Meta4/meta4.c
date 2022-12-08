@@ -151,16 +151,21 @@ void print_double(char *d){
     counter++;
 }
 
-void print_string(char *s){ 
+void init_strings(){
     int esc_count = 0;
-    char *val = conv_escape(s, &esc_count);
-    int len = strlen(val) - 2 * esc_count + 1;
-    printf("%%%d = alloca [%d x i8]\n", ++counter, len);
-    printf("store [%d x i8] c\"%s\\00\", [%d x i8]* %%%d\n", len, val, len, counter);
-    printf("%%%d = getelementptr [%d x i8], [%d x i8]* %%%d, i64 0, i64 0\n", counter+1, len, len, counter);
-    counter++;
-    printf("tail call i32 (i8*, ...) @printf(i8* getelementptr ([3 x i8], [3 x i8]* @.string, i64 0, i64 0), i8* %%%d)\n", counter++);
-    free(val);
+    char *val;
+    Str *aux, *previous;
+    for(aux = string_list; aux; previous = aux, aux = aux->next, esc_count = 0){
+        val = conv_escape(aux->value, &esc_count);
+        aux->len = strlen(val) - 2 * esc_count + 1;
+        printf("@.str.%d = private unnamed_addr constant [%d x i8] c\"%s\\00\"\n", aux->string_id, aux->len, val);
+    }
+}
+
+void print_string(char *s){ 
+    Str *full_str = search_string(s);
+    int s_len = full_str->len, s_id = full_str->string_id;
+    printf("tail call i32 (i8*, ...) @printf(i8* getelementptr ([%d x i8], [%d x i8]* @.str.%d, i64 0, i64 0))\n", s_len, s_len, s_id);
 }
 
 void print_func(Node *node){
@@ -557,8 +562,10 @@ int setup_llvmir(){
     printf("@.int = private unnamed_addr constant [3 x i8] c\"%%d\\00\"\n");
     printf("@.double = private unnamed_addr constant [6 x i8] c\"%%.16e\\00\"\n");
     printf("@.string = private constant [3 x i8] c\"%%s\\00\"\n");
-    printf("@.argc = global i32 0");
-    printf("\ndeclare i32 @printf(i8* nocapture readonly, ...) nounwind\n");
+    printf("@.argc = global i32 0\n\n");
+    init_strings();
+    //free_string();
+    printf("\ndeclare i32 @printf(i8* nocapture readonly, ...) nounwind");
     printf("\ndeclare i32 @atoi(i8* nocapture readonly) nounwind\n");
     printf("\ndefine void @.print_boolean(i1 %%.boolean) {\n");
     printf("%%1 = zext i1 %%.boolean to i32\n");
@@ -577,5 +584,4 @@ int setup_llvmir(){
     
     //print_boolean("%6");
     //printf("ret i32 0\n}\n");
-    
 }

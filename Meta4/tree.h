@@ -23,6 +23,7 @@ typedef struct node{
 	char *value;
 	char *true_type;
 	int print_true_type;
+	int string_id;
 	Param *params;
 	struct node * son;
     struct node * bro;
