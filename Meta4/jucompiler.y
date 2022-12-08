@@ -9,9 +9,13 @@
     #include <string.h>
     #include "tree.h"
 
+    #define MAX_TK 6
+
     extern int yylex(void);
     extern void yyerror(char*);
     extern char* yytext;
+
+    void free_tk(Tk *tk1, Tk *tk2, Tk *tk3, Tk *tk4, Tk *tk5, Tk *tk6);
 
     int yacc_error = 0;
     
@@ -42,21 +46,21 @@
 %type <node> MethodFieldDecl MethodDecl FieldDecl FieldCommaId Type MethodHeader MethodBody FormalParams StatementVarDecl CommaTypeIds VarDecl VarCommaId Statement MultipleStatements MethodInvocation CommaExpr Assignment ParseArgs Expr ExprNoAssign
 %%
 
-Program: CLASS ID LBRACE RBRACE                     {root = create_node("Program", NULL, 0, 0, NULL); add_son(root, create_node("Id",$2->value, $2->line, $2->col, NULL));}                   
-    | CLASS ID LBRACE MethodFieldDecl RBRACE        {root = create_node("Program", NULL, 0, 0, NULL); add_son(root, add_bro(create_node("Id",$2->value, $2->line, $2->col, NULL), $4));}   
-    | CLASS ID LBRACE RBRACE error                  {yacc_error = 1;}                   
-    | CLASS ID LBRACE MethodFieldDecl RBRACE error  {yacc_error = 1;}   
+Program: CLASS ID LBRACE RBRACE                     {root = create_node("Program", NULL, 0, 0, NULL); add_son(root, create_node("Id",$2->value, $2->line, $2->col, NULL)); free_tk($1, $2, $3, $4, NULL, NULL);}                   
+    | CLASS ID LBRACE MethodFieldDecl RBRACE        {root = create_node("Program", NULL, 0, 0, NULL); add_son(root, add_bro(create_node("Id",$2->value, $2->line, $2->col, NULL), $4)); free_tk($1, $2, $3, $5, NULL, NULL);}   
+    | CLASS ID LBRACE RBRACE error                  {yacc_error = 1; free_tk($1, $2, $3, $4, NULL, NULL);}                   
+    | CLASS ID LBRACE MethodFieldDecl RBRACE error  {yacc_error = 1; free_tk($1, $2, $3, $5, NULL, NULL);}   
     ;
 
 MethodFieldDecl: MethodDecl                         {$$=$1;}
     | FieldDecl                                     {$$=$1;}
-    | SEMICOLON                                     {$$=NULL;}
+    | SEMICOLON                                     {$$=NULL; free_tk($1, NULL, NULL, NULL, NULL, NULL);}
     | MethodDecl MethodFieldDecl                    {$$=add_bro($1,$2);}
     | FieldDecl MethodFieldDecl                     {$$=add_bro($1,$2);}
-    | SEMICOLON MethodFieldDecl                     {$$=$2;}
+    | SEMICOLON MethodFieldDecl                     {$$=$2; free_tk($1, NULL, NULL, NULL, NULL, NULL);}
     ;
 
-MethodDecl: PUBLIC STATIC MethodHeader MethodBody   {$$=add_son(create_node("MethodDecl", NULL, 0, 0, NULL), add_bro($3, $4));}
+MethodDecl: PUBLIC STATIC MethodHeader MethodBody   {$$=add_son(create_node("MethodDecl", NULL, 0, 0, NULL), add_bro($3, $4)); free_tk($1, $2, NULL, NULL, NULL, NULL);}
 
 FieldDecl: PUBLIC STATIC Type ID SEMICOLON          {$$=add_son(create_node("FieldDecl",NULL, 0, 0, NULL), add_bro($3, create_node("Id", $4->value, $4->line, $4->col, NULL)));} 
     | PUBLIC STATIC Type ID FieldCommaId SEMICOLON  {$$=add_bro(add_son(create_node("FieldDecl",NULL, 0, 0, NULL), add_bro($3, create_node("Id", $4->value, $4->line, $4->col, NULL))), $5);}   
@@ -139,7 +143,7 @@ CommaExpr: COMMA Expr                               {$$=$2;}
 
 Assignment: ID ASSIGN Expr                          {$$=add_son(create_node("Assign", NULL, $2->line, $2->col, "="), add_bro(create_node("Id", $1->value, $1->line, $1->col, NULL),$3));}
 
-ParseArgs: PARSEINT LPAR ID LSQ Expr RSQ RPAR       {$$=add_son(create_node("ParseArgs", NULL, $1->line, $1->col, "Integer.parseInt"), add_bro(create_node("Id", $3->value, $3->line, $3->col, NULL),$5));}
+ParseArgs: PARSEINT LPAR ID LSQ Expr RSQ RPAR       {$$=add_son(create_node("ParseArgs", NULL, $1->line, $1->col, "Integer.parseInt"), add_bro(create_node("Id", $3->value, $3->line, $3->col, NULL),$5)); free_tk($1, $2, $3, $4, $6, $7);}
     | PARSEINT LPAR error RPAR                      {yacc_error = 1; $$=NULL;}
     ;
 
@@ -178,6 +182,16 @@ ExprNoAssign: ExprNoAssign PLUS ExprNoAssign                        {$$=add_son(
     ;
 
 %%
+
+void free_tk(Tk *tk1, Tk *tk2, Tk *tk3, Tk *tk4, Tk *tk5, Tk *tk6){
+    Tk *tks[MAX_TK] = {tk1, tk2, tk3, tk4, tk5, tk6};
+    for(int i = 0; i < MAX_TK; i++){
+        if(tks[i]){
+            if(tks[i]->value) free(tks[i]->value);
+            free(tks[i]);
+        }
+    }
+}
 
 void yyerror (char * s) {
     printf ("Line %d, col %d: %s: %s\n", line_yacc, col_yacc, s, yytext);

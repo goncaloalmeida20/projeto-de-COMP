@@ -136,6 +136,14 @@ char * convert_type(char * s){
     else return "void";
 }
 
+char * reverse_type(char * s){
+    if (strcmp(s, "boolean") == 0) return "Bool";
+    else if (strcmp(s, "double") == 0) return "Double";
+    else if (strcmp(s, "int") == 0) return "Int";
+    else if (strcmp(s, "String[]") == 0) return "StringArray";
+    else return "Void";
+}
+
 void init_global_vars(){
     for(TableElement *aux = global_symtab->symbols; aux; aux = aux->next){
         if(!aux->params){
@@ -424,6 +432,48 @@ int gen_llvmir(Node *node){
         else if(strcmp(son_conv_type, "double") == 0) print_double(op);
         else if(strcmp(son_conv_type, "i1") == 0) print_boolean(op);
         free(op);
+        return 0;
+    }
+    if(strcmp(node->type, "Call") == 0){
+        Node *func_id_node = node->son;
+        char *son_type, *func_id = func_id_node->value;
+
+        int param_count = 0, i = 0;
+        for(Node *aux = node->son->bro; aux; aux = aux->bro, param_count++);
+
+        char *op, *op_list[param_count];
+
+        Param *params = NULL;
+        for(Node *aux = func_id_node->bro; aux; aux = aux->bro){
+            load_value(aux, &op);
+            op_list[i++] = op;
+            params = add_param(params, NULL, aux->true_type, NULL);
+        }
+        if(!params) params = add_param(NULL, NULL, "", NULL);
+
+
+        Param *aux1, *aux2;
+        for(aux1 = func_id_node->params, aux2 = params, i = 0; aux1 && aux2; aux1 = aux1->next, aux2 = aux2->next, i++){
+            if(strcmp(convert_type(aux1->param_type), "double") == 0 && strcmp(convert_type(aux2->param_type), "i32") == 0){
+                printf("%%%d = uitofp i32 %s to double\n", ++counter, op_list[i]);
+                op_list[i] = (char *)realloc(op_list[i], sizeof(char)*(counter_size() + 3));
+                sprintf(op_list[i], "%%%d", counter);
+            }
+        }
+        
+
+        i = 0;
+        printf("%%%d = call %s @%s", ++counter, convert_type(node->true_type), func_id_node->value);
+        for(Param *aux = func_id_node->params; aux; aux = aux->next) printf("_%s", reverse_type(aux->param_type));
+        printf("(");
+        for(Param *aux = func_id_node->params; aux; aux = aux->next){
+            if(aux != func_id_node->params) printf(", ");
+            printf("%s %s", convert_type(aux->param_type), op_list[i++]);
+        }
+        printf(")\n");
+
+
+        for(i = 0; i < param_count; i++) free(op_list[i]);
         return 0;
     }
     if(strcmp(node->type, "Add") == 0){
