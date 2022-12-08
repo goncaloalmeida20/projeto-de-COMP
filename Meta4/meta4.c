@@ -125,6 +125,7 @@ void free_var_counter(VarCounter *vc){
     if(!vc) return;
     free_var_counter(vc->next);
     free(vc->counter);
+    free(vc->name);
     free(vc);
 }
 
@@ -363,6 +364,7 @@ int gen_llvmir(Node *node){
             gen_llvmir(aux);
         if(strcmp(curr_return_type, "void") == 0) printf("ret void\n");
         printf("}\n");
+        free(curr_return_type);
         curr_return_type = NULL;
         free_var_counter(var_counter);
         var_counter = NULL;
@@ -516,6 +518,7 @@ int gen_llvmir(Node *node){
         load_value(son, &op);
 
         printf("%%%d = xor i1 1, %s\n", ++counter, op);
+        free(op);
         return 0;
     }
     if(strcmp(node->type, "Plus") == 0){
@@ -529,6 +532,7 @@ int gen_llvmir(Node *node){
         else
             printf("%%%d = fadd double %s, 0.0\n", counter++, op);
 
+        free(op);
         return 0;
     }
     if(strcmp(node->type, "Minus") == 0){
@@ -540,7 +544,8 @@ int gen_llvmir(Node *node){
             printf("%%%d = sub i32 %s, 0\n", counter++, op);
         else
             printf("%%%d = fsub double %s, 0.0\n", counter++, op);
-            
+
+        free(op); 
         return 0;
     }
     if (strcmp(node->type, "Lshift") == 0){
@@ -549,6 +554,8 @@ int gen_llvmir(Node *node){
         char *op2;
         load_value(node->son->bro, &op2);
         printf("%%%d = shl i32 %s, %s\n", ++counter, op1, op2);
+        free(op1);
+        free(op2);
     }
     if (strcmp(node->type, "Rshift") == 0){
         char *op1;
@@ -556,6 +563,8 @@ int gen_llvmir(Node *node){
         char *op2;
         load_value(node->son->bro, &op2);
         printf("%%%d = lshr i32 %s, %s\n", ++counter, op1, op2);
+        free(op1);
+        free(op2);
     }
     if (strcmp(node->type, "Eq") == 0){
         two_son_cmp(node, "eq");
@@ -653,4 +662,6 @@ int setup_llvmir(){
     
     //print_boolean("%6");
     //printf("ret i32 0\n}\n");
+
+    free_var_counter(var_counter_global);
 }

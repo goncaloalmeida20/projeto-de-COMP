@@ -81,9 +81,11 @@ double convert_num(char *value, int *base_is_zero, char **conv_str){
     }
 
     *j = 0;
+    double res = atof(val);
     if(base_is_zero) *base_is_zero = is_zero(val);
     if(conv_str) *conv_str = val;
-    return atof(val);
+    else free(val);
+    return res;
 }
 
 int bigger_than_long(char * value){
@@ -97,40 +99,40 @@ int bigger_than_long(char * value){
 }
 
 void declare_method(Node *node){
-        Node *method_header = node->son, *method_type = method_header->son, *method_id = method_type->bro;
-        Node *method_params = method_id->bro;
-        if(strcmp(method_id->value, "_") == 0){
-            error_underscore_reserved(node);
-            return;
+    Node *method_header = node->son, *method_type = method_header->son, *method_id = method_type->bro;
+    Node *method_params = method_id->bro;
+    if(strcmp(method_id->value, "_") == 0){
+        error_underscore_reserved(node);
+        return;
+    }
+    Param *params = NULL;
+    int error = 0;
+    for(Node *aux = method_params->son; aux; aux = aux->bro){
+        params = add_param(params, aux->son->bro->value, aux->son->true_type, &error);
+        if(error == 1){
+            error_already_defined(NULL, aux->son->bro->value, aux->son->bro);
         }
-        Param *params = NULL;
-        int error = 0;
-        for(Node *aux = method_params->son; aux; aux = aux->bro){
-            params = add_param(params, aux->son->bro->value, aux->son->true_type, &error);
-            if(error == 1){
-                error_already_defined(NULL, aux->son->bro->value, aux->son->bro);
-            }
-            else if(error == 2){
-                error_underscore_reserved(aux->son->bro);
-            }
+        else if(error == 2){
+            error_underscore_reserved(aux->son->bro);
         }
-        if(!insert_el_func(method_id->value, method_type->true_type, params)){
-            if(!params) params = add_param(NULL, NULL, "", NULL);
-            error_already_defined(params, method_id->value, method_id);
-            node->check_node = 0;
-        }
-            
+    }
+    if(!insert_el_func(method_id->value, method_type->true_type, params)){
+        if(!params) params = add_param(NULL, NULL, "", NULL);
+        error_already_defined(params, method_id->value, method_id);
+        node->check_node = 0;
+    }
+    if(params) free_params(params);            
 }
 
 void declare_var(Node *node){
-        Node *type_node = node->son;
-        Node *id_node = type_node->bro;
-        if(strcmp(id_node->value, "_") == 0){
-            error_underscore_reserved(id_node);
-            return;
-        }
-        if(!insert_el(id_node->value, type_node->true_type, scope, curr_params))
-            error_already_defined(NULL, id_node->value, id_node);
+    Node *type_node = node->son;
+    Node *id_node = type_node->bro;
+    if(strcmp(id_node->value, "_") == 0){
+        error_underscore_reserved(id_node);
+        return;
+    }
+    if(!insert_el(id_node->value, type_node->true_type, scope, curr_params))
+        error_already_defined(NULL, id_node->value, id_node);
 }
 
 Str* search_string(char *value){
@@ -250,6 +252,10 @@ char* check(Node *node){
         else if(strcmp(son_type, return_type) != 0 ){
             if(!int_double)error_incompatible_type(node->true_type, son_type, node->son);
         }
+        if(node->true_type){
+            free(node->true_type);
+            node->true_type = NULL;
+        }
         node->true_type = strdup(son_type);
         return NULL;
     }
@@ -265,19 +271,45 @@ char* check(Node *node){
         int ambiguous = 0;
         TableElement *func = search_el_func(func_id, params, &ambiguous);
         if(!func){
+            if(func_id_node->params){
+                free_params(func_id_node->params);
+                func_id_node->params = NULL;
+            }
             func_id_node->params = param_dup(params);
+
             if(ambiguous) error_ambiguous_func(node->son->params, node->son->value, node->son);
             else error_symbol_not_found(node->son->params, node->son->value, node->son);
+            if(func_id_node->true_type){
+                free(func_id_node->true_type);
+                func_id_node->true_type = NULL;
+            }
             func_id_node->true_type = strdup("undef");
             func_id_node->print_true_type = 1;
             func_id_node->params = NULL;
+
+            if(node->true_type){
+                free(node->true_type);
+                node->true_type = NULL;
+            }
             node->true_type = strdup("undef");
             node->print_true_type = 1;
             return "undef";
         }
-        func_id_node->true_type = NULL;
+        if(func_id_node->true_type){
+            free(func_id_node->true_type);
+            func_id_node->true_type = NULL;
+        }
         func_id_node->print_true_type = 1;
+        if(func_id_node->params){
+            free_params(func_id_node->params);
+            func_id_node->params = NULL;
+        }
         func_id_node->params = param_dup(func->params);
+
+        if(node->true_type){
+            free(node->true_type);
+            node->true_type = NULL;
+        }
         node->true_type = strdup(func->type);
         node->print_true_type = 1;
         free_params(params);
@@ -296,6 +328,10 @@ char* check(Node *node){
         if(!(strcmp(son_type, "String[]") == 0 && strcmp(other_son_type, "int") == 0)){
             error_operator_cannot_be_applied(node->true_type, son_type, other_son_type, node);
         }
+        if(node->true_type){
+            free(node->true_type);
+            node->true_type = NULL;
+        }
         node->true_type = strdup("int");
         node->print_true_type = 1;
         return "int";
@@ -309,6 +345,10 @@ char* check(Node *node){
         if(!(strcmp(son_type, other_son_type) == 0 && strcmp(son_type, "boolean") == 0 || valid_int_doubles)){
             error_operator_cannot_be_applied(node->true_type, son_type, other_son_type, node);
         }
+        if(node->true_type){
+            free(node->true_type);
+            node->true_type = NULL;
+        }
         node->true_type = strdup(son_type);
         node->print_true_type = 1;
         return son_type;
@@ -318,9 +358,17 @@ char* check(Node *node){
         char *other_son_type = check(node->son->bro);
         if(!((strcmp(son_type, "int") == 0 || strcmp(son_type, "boolean") == 0) && strcmp(son_type, other_son_type) == 0)){
             error_operator_cannot_be_applied(node->true_type, son_type, other_son_type, node);
+            if(node->true_type){
+                free(node->true_type);
+                node->true_type = NULL;
+            }
             node->true_type = strdup("undef");
             node->print_true_type = 1;
             return "undef";
+        }
+        if(node->true_type){
+            free(node->true_type);
+            node->true_type = NULL;
         }
         node->true_type = strdup(son_type);
         node->print_true_type = 1;
@@ -332,6 +380,10 @@ char* check(Node *node){
         if(!(strcmp(son_type, "boolean") == 0 && strcmp(son_type, other_son_type) == 0)){
             error_operator_cannot_be_applied(node->true_type, son_type, other_son_type, node);
         }
+        if(node->true_type){
+            free(node->true_type);
+            node->true_type = NULL;
+        }
         node->true_type = strdup("boolean");
         node->print_true_type = 1;
         return "boolean";
@@ -341,6 +393,10 @@ char* check(Node *node){
         if(!(strcmp(son_type, "boolean") == 0)){
             error_operator_cannot_be_applied(node->true_type, son_type, NULL, node);
         }
+        if(node->true_type){
+            free(node->true_type);
+            node->true_type = NULL;
+        }
         node->true_type = strdup("boolean");
         node->print_true_type = 1;
         return "boolean";
@@ -349,11 +405,19 @@ char* check(Node *node){
         char *son_type = check(node->son);
         node->print_true_type = 1;
         if (map_int_double(son_type) >= 0){
+            if(node->true_type){
+                free(node->true_type);
+                node->true_type = NULL;
+            }
             node->true_type = strdup(son_type);
             return son_type;
         } 
 
         error_operator_cannot_be_applied(node->true_type, son_type, NULL, node);
+        if(node->true_type){
+            free(node->true_type);
+            node->true_type = NULL;
+        }
         node->true_type = strdup("undef");
         return "undef";
     }
@@ -361,6 +425,10 @@ char* check(Node *node){
         char *son_type = check(node->son);
         if(!(strcmp(son_type, "String[]") == 0)){
            error_operator_cannot_be_applied(node->true_type, son_type, NULL, node);
+        }
+        if(node->true_type){
+            free(node->true_type);
+            node->true_type = NULL;
         }
         node->true_type = strdup("int");
         node->print_true_type = 1;
@@ -374,6 +442,10 @@ char* check(Node *node){
         if(!(map_int_double(son_type) >= 0 && map_int_double(other_son_type) >= 0 && valid_numbers || booleans)){
             error_operator_cannot_be_applied(node->true_type, son_type, other_son_type, node);
         }
+        if(node->true_type){
+            free(node->true_type);
+            node->true_type = NULL;
+        }
         node->true_type = strdup("boolean");
         node->print_true_type = 1;
         return "boolean";
@@ -383,6 +455,10 @@ char* check(Node *node){
         char *other_son_type = check(node->son->bro);
         if(!(map_int_double(son_type) >= 0 && map_int_double(other_son_type) >= 0)){
             error_operator_cannot_be_applied(node->true_type, son_type, other_son_type, node);
+        }
+        if(node->true_type){
+            free(node->true_type);
+            node->true_type = NULL;
         }
         node->true_type = strdup("boolean");
         node->print_true_type = 1;
@@ -396,44 +472,68 @@ char* check(Node *node){
         node->print_true_type = 1;
         if(son_type_mapped < 0 || other_son_type_mapped < 0){
             error_operator_cannot_be_applied(node->true_type, son_type, other_son_type, node);
+            if(node->true_type){
+                free(node->true_type);
+                node->true_type = NULL;
+            }
             node->true_type = strdup("undef");
             return "undef";
         }
 
         if(son_type_mapped + other_son_type_mapped == 0){
+            if(node->true_type){
+                free(node->true_type);
+                node->true_type = NULL;
+            }
             node->true_type = strdup("int");
             return "int";
+        }
+        if(node->true_type){
+            free(node->true_type);
+            node->true_type = NULL;
         }
         node->true_type = strdup("double");
         return "double";
     }
     if(strcmp(node->type, "Lshift") == 0 || strcmp(node->type, "Rshift") == 0){
-        /*if(strcmp(node->son->bro->type, "Id") == 0 && strcmp(search_el_scope(node->son->bro->value, scope, curr_params), "int") == 0){
-            node->true_type = strdup("none");
-            node->print_true_type = 0;
-            return "none";
-        }*/
         char *son_type = check(node->son);
         char *other_son_type = check(node->son->bro);
         if(!(strcmp(son_type, "int") == 0 && strcmp(other_son_type, "int") == 0)){
             error_operator_cannot_be_applied(node->true_type, son_type, other_son_type, node);
+            if(node->true_type){
+                free(node->true_type);
+                node->true_type = NULL;
+            }
             node->true_type = strdup("undef");
             node->print_true_type = 1;
             return "undef";
+        }
+        if(node->true_type){
+            free(node->true_type);
+            node->true_type = NULL;
         }
         node->true_type = strdup("int");
         node->print_true_type = 1;
         return "int";
     }
     if(strcmp(node->type, "DecLit") == 0){
+        if(node->true_type){
+            free(node->true_type);
+            node->true_type = NULL;
+        }
         node->true_type = strdup("int");
         node->print_true_type = 1;
         char *converted_str = node->value;
         long value = (long)convert_num(node->value, NULL, &converted_str);
         if (value > 2147483647 || value < 0 || strlen(converted_str) >= 10 && bigger_than_long(converted_str)) error_out_of_bounds(node->value, node);
+        free(converted_str);
         return "int";
     }
     if(strcmp(node->type, "RealLit") == 0){
+        if(node->true_type){
+            free(node->true_type);
+            node->true_type = NULL;
+        }
         node->true_type = strdup("double");
         node->print_true_type = 1;
         int base_is_zero = 0;
@@ -446,11 +546,19 @@ char* check(Node *node){
         return "double";
     }
     if(strcmp(node->type, "BoolLit") == 0){
+        if(node->true_type){
+            free(node->true_type);
+            node->true_type = NULL;
+        }
         node->true_type = strdup("boolean");
         node->print_true_type = 1;
         return "boolean";
     }
     if(strcmp(node->type, "StrLit") == 0){
+        if(node->true_type){
+            free(node->true_type);
+            node->true_type = NULL;
+        }
         node->true_type = strdup("String");
         node->print_true_type = 1;
         create_string(node->value);
@@ -461,8 +569,16 @@ char* check(Node *node){
         node->print_true_type = 1;
         if(!id_type){
             error_symbol_not_found(node->params, node->value, node);
+            if(node->true_type){
+                free(node->true_type);
+                node->true_type = NULL;
+            }
             node->true_type = strdup("undef");
             return "undef";
+        }
+        if(node->true_type){
+            free(node->true_type);
+            node->true_type = NULL;
         }
         node->true_type = strdup(id_type);
         return node->true_type;
