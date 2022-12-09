@@ -137,13 +137,19 @@ Param* add_param(Param *params, char *name, char *type, int *error){
 
 TableElement *search_el_func(char *name, Param *params, int *ambiguous){
 	if(ambiguous) *ambiguous = 0;
-	int ambiguous_count = 0;
+	int ambiguous_count = 0, free_temp_params = 0;
 	TableElement *promoted_int_func = NULL;
 	for(TableElement *aux=global_symtab->symbols; aux; aux=aux->next){
 		if(aux->params && strcmp(aux->name, name)==0){
-			if(!params)
+			if(!params){
+				free_temp_params = 1;
 				params = add_param(NULL, NULL, "", NULL);
+			}
 			int comparison = compare_params(aux->params, params);
+			if(free_temp_params){
+				free_params(params);
+				params = NULL;
+			}
 			if(comparison == 1) return aux;
 			if(ambiguous && comparison == 2){
 				if(ambiguous_count == 0){

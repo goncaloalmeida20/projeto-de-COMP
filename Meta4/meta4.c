@@ -202,10 +202,10 @@ void print_func(Node *node){
     curr_return_type = strdup(method_type);
     printf("\ndefine %s @%s", method_type, method_name);
     Node *aux, *params = node->son->bro->bro->son;
-    if(!params) printf("_Void");
+    if(!params) printf(".Void");
     else{
         for(aux = params; aux; aux = aux->bro){
-            printf("_%s", aux->son->type);
+            printf(".%s", aux->son->type);
         }
     } 
     printf("(");
@@ -406,8 +406,8 @@ int gen_llvmir(Node *node){
         char *conv_type = convert_type(son->type);
         create_var_counter(other_son->value, ++counter);
         printf("%s = alloca %s\n", get_counter(other_son->value), conv_type);
-        if(strcmp(conv_type, "double") == 0) printf("store double 0.0, double* %s", get_counter(other_son->value));
-        else printf("store %s 0, %s* %s", conv_type, conv_type, get_counter(other_son->value));
+        if(strcmp(conv_type, "double") == 0) printf("store double 0.0, double* %s\n", get_counter(other_son->value));
+        else printf("store %s 0, %s* %s\n", conv_type, conv_type, get_counter(other_son->value));
         
     }
     if(strcmp(node->type, "Return") == 0){
@@ -448,6 +448,7 @@ int gen_llvmir(Node *node){
             printf("store %s %%%d, %s* %s\n", son_true_type, counter, son_true_type, get_counter(son->value));
         }
         else printf("store %s %s, %s* %s\n", son_true_type, op, son_true_type, get_counter(son->value));
+        printf("%%%d = load %s, %s* %s\n", ++counter, son_true_type, son_true_type, get_counter(son->value));
         free(op);
         return 0;
     }
@@ -497,7 +498,7 @@ int gen_llvmir(Node *node){
         if(strcmp(return_type, "void") == 0) printf("call void @%s", func_id_node->value);
         else printf("%%%d = call %s @%s", ++counter, return_type, func_id_node->value);
 
-        for(Param *aux = func_id_node->params; aux; aux = aux->next) printf("_%s", reverse_type(aux->param_type));
+        for(Param *aux = func_id_node->params; aux; aux = aux->next) printf(".%s", reverse_type(aux->param_type));
 
         printf("(");
         if(!(strcmp(convert_type(func_id_node->params->param_type), "void")==0)){
@@ -538,6 +539,7 @@ int gen_llvmir(Node *node){
         return 0;
     }
     if (strcmp(node->type, "And") == 0){
+        //two_son_boolean(node, "and");
         Node *son = node->son;
         char *op1, *op2;
 
@@ -560,12 +562,13 @@ int gen_llvmir(Node *node){
         
         printf("and_cont.%d:\n", temp_label_counter);
         printf("%%%d = load i1, i1* %%and_res.%d\n\n", ++counter, temp_label_counter);
-
+        
         free(op1);
         free(op2);
         return 0;
     }
     if (strcmp(node->type, "Or") == 0){
+        //two_son_boolean(node, "or");
         Node *son = node->son;
         char *op1, *op2;
 
@@ -639,6 +642,7 @@ int gen_llvmir(Node *node){
         printf("%%%d = shl i32 %s, %s\n", ++counter, op1, op2);
         free(op1);
         free(op2);
+        return 0;
     }
     if (strcmp(node->type, "Rshift") == 0){
         char *op1;
@@ -648,24 +652,31 @@ int gen_llvmir(Node *node){
         printf("%%%d = ashr i32 %s, %s\n", ++counter, op1, op2);
         free(op1);
         free(op2);
+        return 0;
     }
     if (strcmp(node->type, "Eq") == 0){
         two_son_cmp(node, "eq", "oeq");
+        return 0;
     }
     if (strcmp(node->type, "Ne") == 0){
         two_son_cmp(node, "ne", "one");
+        return 0;
     }
     if (strcmp(node->type, "Lt") == 0){
         two_son_cmp(node, "slt", "olt");
+        return 0;
     }
     if (strcmp(node->type, "Gt") == 0){
         two_son_cmp(node, "sgt", "ogt");
+        return 0;
     }
     if (strcmp(node->type, "Le") == 0){
         two_son_cmp(node, "sle", "ole");
+        return 0;
     }
     if (strcmp(node->type, "Ge") == 0){
         two_son_cmp(node, "sge", "oge");
+        return 0;
     }
     if (strcmp(node->type, "If") == 0){
         int temp_label_counter = ++label_counter;
@@ -713,11 +724,11 @@ int gen_llvmir(Node *node){
         load_value(node->son->bro, &op);
         printf("%%%d = load i8**, i8*** %s\n", ++counter, get_counter(node->son->value));
         printf("%%%d = add i32 %s, 1\n", ++counter, op);
-        printf("%%%d = getelementptr inbounds i8*, i8** %%%d, i32 %%%d\n", counter + 1, counter - 1, counter);
+        printf("%%%d = getelementptr i8*, i8** %%%d, i32 %%%d\n", counter + 1, counter - 1, counter);
         counter++;
         printf("%%%d = load i8*, i8** %%%d\n", counter + 1, counter);
         counter++;
-        printf("%%%d = call i32 @atoi(i8* noundef %%%d)\n", counter + 1, counter);
+        printf("%%%d = call i32 @atoi(i8* %%%d)\n", counter + 1, counter);
         counter++;
         free(op);
         return 0;
@@ -728,7 +739,7 @@ int gen_llvmir(Node *node){
 int setup_llvmir(){
     printf("@.false = private unnamed_addr constant [6 x i8] c\"false\\00\"\n");
     printf("@.true = private unnamed_addr constant [5 x i8] c\"true\\00\"\n");
-    printf("@.booleans = dso_local global [2 x i8*] [i8* getelementptr ([6 x i8], [6 x i8]* @.false, i32 0, i32 0), i8* getelementptr ([5 x i8], [5 x i8]* @.true, i32 0, i32 0)]\n");
+    printf("@.booleans = global [2 x i8*] [i8* getelementptr ([6 x i8], [6 x i8]* @.false, i32 0, i32 0), i8* getelementptr ([5 x i8], [5 x i8]* @.true, i32 0, i32 0)]\n");
     printf("@.int = private unnamed_addr constant [3 x i8] c\"%%d\\00\"\n");
     printf("@.double = private unnamed_addr constant [6 x i8] c\"%%.16e\\00\"\n");
     printf("@.string = private constant [3 x i8] c\"%%s\\00\"\n");
@@ -750,7 +761,7 @@ int setup_llvmir(){
     printf("\ndefine i32 @main(i32 %%0, i8** %%1) {\n");
     printf("%%3 = sub i32 %%0, 1\n");
     printf("store i32 %%3, i32* @.argc\n");
-    printf("call void @main_StringArray(i8** %%1)\nret i32 0\n}\n");
+    printf("call void @main.StringArray(i8** %%1)\nret i32 0\n}\n");
     //printf("\ndefine i32 @main() {\n");
     
     //print_boolean("%6");
