@@ -10,22 +10,26 @@ char *curr_return_type = NULL;
 VarCounter *var_counter = NULL, *var_counter_global = NULL;
 int counter = -1, label_counter = 0;
 
-char* conv_escape(char *s, int *esc_counter){
-    *esc_counter = 0;
+char* conv_escape(char *s, int *new_len){
+    *new_len = 0;
+    int esc_counter = 0;
     char *aux, *new_aux;
-    for(aux = s; *aux; aux++){
+    for(aux = s+1; *(aux+1); aux++, (*new_len)++){
         if(*aux == '\\' && aux+1 && *(aux+1) == '\\'){
-            (*esc_counter)++;
+            esc_counter++;
             aux++;
         }
-        else if(*aux == '\\') (*esc_counter)++;
+        else if(*aux == '\\'){
+            esc_counter += 2;
+            aux++;
+        } 
     }
-    char *new_s = (char*) malloc(sizeof(char) * (strlen(s) + 1 + *esc_counter));
+    char *new_s = (char*) malloc(sizeof(char) * (strlen(s) + 1 + esc_counter));
     if(!new_s){
         printf("ERROR MALLOC CONV ESC\n");
         return NULL;
     }
-    for(aux = s + 1, new_aux = new_s; *aux; aux++){
+    for(aux = s + 1, new_aux = new_s; *(aux+1); aux++){
         if(*aux == '\\'){
             *new_aux++ = *aux++;
             switch(*aux){
@@ -49,7 +53,8 @@ char* conv_escape(char *s, int *esc_counter){
                     *new_aux++ = '\\';
                     break;
                 case '\"':
-                    *new_aux++ = '\"';
+                    *new_aux++ = '2';
+                    *new_aux++ = '2';
                     break;
                 default:
                     printf("ERROR CONV ESC SWITCH\n");
@@ -58,7 +63,7 @@ char* conv_escape(char *s, int *esc_counter){
         else *new_aux++ = *aux;
     }
     *new_aux = 0;
-    new_s[strlen(new_s)-1] = 0;
+    new_s[strlen(new_s)] = 0;
     return new_s;
 }
 
@@ -173,12 +178,12 @@ void print_double(char *d){
 }
 
 void init_strings(){
-    int esc_count = 0;
+    int new_len = 0;
     char *val;
     Str *aux, *previous;
-    for(aux = string_list; aux; previous = aux, aux = aux->next, esc_count = 0){
-        val = conv_escape(aux->value, &esc_count);
-        aux->len = strlen(val) - 2 * esc_count + 1;
+    for(aux = string_list; aux; previous = aux, aux = aux->next, new_len = 0){
+        val = conv_escape(aux->value, &new_len);
+        aux->len = new_len + 1;
         printf("@.str.%d = private unnamed_addr constant [%d x i8] c\"%s\\00\"\n", aux->string_id, aux->len, val);
         free(val);
     }
@@ -401,11 +406,15 @@ int gen_llvmir(Node *node){
         char *conv_type = convert_type(son->type);
         create_var_counter(other_son->value, ++counter);
         printf("%s = alloca %s\n", get_counter(other_son->value), conv_type);
+        if(strcmp(conv_type, "double") == 0) printf("store double 0.0, double* %s", get_counter(other_son->value));
+        else printf("store %s 0, %s* %s", conv_type, conv_type, get_counter(other_son->value));
+        
     }
     if(strcmp(node->type, "Return") == 0){
         Node *son = node->son;
         if(son == NULL){
             printf("ret void\n");
+            counter++;
             return 0;
         }
 
@@ -499,7 +508,7 @@ int gen_llvmir(Node *node){
         }
         printf(")\n");
 
-
+        free_params(params);
         for(i = 0; i < param_count; i++) free(op_list[i]);
         return 0;
     }
@@ -524,15 +533,64 @@ int gen_llvmir(Node *node){
         return 0;
     }
     if (strcmp(node->type, "Xor") == 0){
-        two_son_boolean(node, "xor");
+        if(strcmp(node->son->true_type, "int") == 0) two_son_int_double(node, "xor", NULL);
+        else two_son_boolean(node, "xor");
         return 0;
     }
     if (strcmp(node->type, "And") == 0){
-        two_son_boolean(node, "and");
+        Node *son = node->son;
+        char *op1, *op2;
+
+        int temp_label_counter = ++label_counter;
+        printf("br label %%and_entry.%d\n\n", temp_label_counter);
+        
+        printf("and_entry.%d:\n", temp_label_counter);
+        printf("%%and_res.%d = alloca i1\n", temp_label_counter);
+        load_value(son, &op1);
+        printf("br i1 %s, label %%and_normal.%d, label %%and_short_circuit.%d\n\n", op1, temp_label_counter, temp_label_counter);
+        
+        printf("and_normal.%d:\n", temp_label_counter);
+        load_value(son->bro, &op2);
+        printf("store i1 %s, i1* %%and_res.%d\n", op2, temp_label_counter);
+        printf("br label %%and_cont.%d\n\n", temp_label_counter);
+        
+        printf("and_short_circuit.%d:\n", temp_label_counter);
+        printf("store i1 0, i1* %%and_res.%d\n", temp_label_counter);
+        printf("br label %%and_cont.%d\n\n", temp_label_counter);
+        
+        printf("and_cont.%d:\n", temp_label_counter);
+        printf("%%%d = load i1, i1* %%and_res.%d\n\n", ++counter, temp_label_counter);
+
+        free(op1);
+        free(op2);
         return 0;
     }
     if (strcmp(node->type, "Or") == 0){
-        two_son_boolean(node, "or");
+        Node *son = node->son;
+        char *op1, *op2;
+
+        int temp_label_counter = ++label_counter;
+        printf("br label %%or_entry.%d\n\n", temp_label_counter);
+
+        printf("or_entry.%d:\n", temp_label_counter);
+        printf("%%or_res.%d = alloca i1\n", temp_label_counter);
+        load_value(son, &op1);
+        printf("br i1 %s, label %%or_short_circuit.%d, label %%or_normal.%d\n\n", op1, temp_label_counter, temp_label_counter);
+        
+        printf("or_short_circuit.%d:\n", temp_label_counter);
+        printf("store i1 1, i1* %%or_res.%d\n", temp_label_counter);
+        printf("br label %%or_cont.%d\n\n", temp_label_counter);
+        
+        printf("or_normal.%d:\n", temp_label_counter);
+        load_value(son->bro, &op2);
+        printf("store i1 %s, i1* %%or_res.%d\n", op2, temp_label_counter);
+        printf("br label %%or_cont.%d\n\n", temp_label_counter);
+        
+        printf("or_cont.%d:\n", temp_label_counter);
+        printf("%%%d = load i1, i1* %%or_res.%d\n\n", ++counter, temp_label_counter);
+
+        free(op1);
+        free(op2);
         return 0;
     }
     if (strcmp(node->type, "Not") == 0){
@@ -651,13 +709,17 @@ int gen_llvmir(Node *node){
         return 0;
     }
     if(strcmp(node->type, "ParseArgs") == 0){
+        char *op;
+        load_value(node->son->bro, &op);
         printf("%%%d = load i8**, i8*** %s\n", ++counter, get_counter(node->son->value));
-        printf("%%%d = getelementptr inbounds i8*, i8** %%%d, i64 %d\n", counter + 1, counter, atoi(node->son->bro->value)+1);
+        printf("%%%d = add i32 %s, 1\n", ++counter, op);
+        printf("%%%d = getelementptr inbounds i8*, i8** %%%d, i32 %%%d\n", counter + 1, counter - 1, counter);
         counter++;
         printf("%%%d = load i8*, i8** %%%d\n", counter + 1, counter);
         counter++;
         printf("%%%d = call i32 @atoi(i8* noundef %%%d)\n", counter + 1, counter);
         counter++;
+        free(op);
         return 0;
     }
     return 0;
@@ -686,7 +748,8 @@ int setup_llvmir(){
 
     
     printf("\ndefine i32 @main(i32 %%0, i8** %%1) {\n");
-    printf("store i32 %%0, i32* @.argc\n");
+    printf("%%3 = sub i32 %%0, 1\n");
+    printf("store i32 %%3, i32* @.argc\n");
     printf("call void @main_StringArray(i8** %%1)\nret i32 0\n}\n");
     //printf("\ndefine i32 @main() {\n");
     
