@@ -58,12 +58,13 @@ char* conv_escape(char *s, int *new_len){
                     break;
                 default:
                     printf("ERROR CONV ESC SWITCH\n");
+                    free(new_s);
+                    return NULL;
             }
         }
         else *new_aux++ = *aux;
     }
     *new_aux = 0;
-    new_s[strlen(new_s)] = 0;
     return new_s;
 }
 
@@ -168,12 +169,12 @@ void print_boolean(char *s){
 }
 
 void print_int(char *i){
-    printf("tail call i32 (i8*, ...) @printf(i8* getelementptr ([3 x i8], [3 x i8]* @.int, i64 0, i64 0), i32 %s)\n", i);
+    printf("call i32 (i8*, ...) @printf(i8* getelementptr ([3 x i8], [3 x i8]* @.int, i64 0, i64 0), i32 %s)\n", i);
     counter++;
 }
 
 void print_double(char *d){
-    printf("tail call i32 (i8*, ...) @printf(i8* getelementptr ([6 x i8], [6 x i8]* @.double, i64 0, i64 0), double %s)\n", d);
+    printf("call i32 (i8*, ...) @printf(i8* getelementptr ([6 x i8], [6 x i8]* @.double, i64 0, i64 0), double %s)\n", d);
     counter++;
 }
 
@@ -347,9 +348,10 @@ void two_son_cmp(Node *node, char *op_ins, char *op_ins_f){
     Node *son = node->son;
     char *son_true_type = convert_type(son->true_type);
     char *other_son_true_type = convert_type(son->bro->true_type);
-    if(strcmp(son_true_type, "i32") == 0)
-        printf("%%%d = icmp %s i32 %s, %s\n", ++counter, op_ins, op[0], op[1]);
-    else if (strcmp(son_true_type, "double") == 0 || strcmp(other_son_true_type, "double") == 0){
+    if(strcmp(son_true_type, "i32") == 0 && strcmp(other_son_true_type, "i32") == 0 
+    || strcmp(son_true_type, "i1") == 0 && strcmp(other_son_true_type, "i1") == 0)
+        printf("%%%d = icmp %s %s %s, %s\n", ++counter, op_ins, son_true_type, op[0], op[1]);
+    else{
         if(strcmp(son_true_type, "i32") == 0){
             printf("%%%d = sitofp i32 %s to double\n", ++counter, op[0]);
             op[0] = (char *)realloc(op[0], sizeof(char)*(counter_size() + 3));
@@ -360,8 +362,6 @@ void two_son_cmp(Node *node, char *op_ins, char *op_ins_f){
             sprintf(op[1], "%%%d", counter);
         }
         printf("%%%d = fcmp %s double %s, %s\n", ++counter, op_ins_f, op[0], op[1]);
-    } else {
-        printf("%%%d = icmp %s i1 %s, %s\n", ++counter, op_ins, op[0], op[1]);
     }
     free(op[0]);
     free(op[1]);
@@ -454,7 +454,10 @@ int gen_llvmir(Node *node){
     }
     if(strcmp(node->type, "Print") == 0){
         Node *son = node->son;
-        if(strcmp(son->true_type, "String") == 0) print_string(node->son->value);
+        if(strcmp(son->true_type, "String") == 0){
+            print_string(node->son->value);
+            return 0;
+        } 
         char *son_conv_type = convert_type(son->true_type);
         char *op;
         load_value(son, &op);
@@ -748,11 +751,11 @@ int setup_llvmir(){
     init_global_vars();
     printf("\ndeclare i32 @printf(i8* nocapture readonly, ...) nounwind");
     printf("\ndeclare i32 @atoi(i8* nocapture readonly) nounwind\n");
-    printf("\ndefine void @.print_boolean(i1 %%.boolean) {\n");
+    printf("\ndefine void @.print_boolean(i1 %%.boolean) nounwind{\n");
     printf("%%1 = zext i1 %%.boolean to i32\n");
     printf("%%2 = getelementptr [2 x i8*], [2 x i8*]* @.booleans, i32 0, i32 %%1\n");
     printf("%%3 = load i8*, i8** %%2\n");
-    printf("tail call i32 (i8*, ...) @printf(i8* %%3)\n");
+    printf("call i32 (i8*, ...) @printf(i8* %%3)\n");
     printf("ret void\n}\n");
 
     gen_llvmir(root);
