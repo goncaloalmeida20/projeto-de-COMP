@@ -18,7 +18,11 @@ char* conv_escape(char *s, int *new_len){
         if(*aux == '\\'){
             esc_counter += 2;
             aux++;
-        } 
+        }
+        else if(*aux == '%'){
+            esc_counter++;
+            (*new_len)++;
+        }
     }
     char *new_s = (char*) malloc(sizeof(char) * (strlen(s) + 1 + esc_counter));
     if(!new_s){
@@ -54,6 +58,10 @@ char* conv_escape(char *s, int *new_len){
                     *new_aux++ = '2';
                     break;
             }
+        }
+        else if(*aux == '%'){
+            *new_aux++ = '%';
+            *new_aux++ = '%';
         }
         else *new_aux++ = *aux;
     }
@@ -216,12 +224,12 @@ void print_func(Node *node){
         char *type = convert_type(aux->son->type);
         char *value = aux->son->bro->value;
         create_var_counter(value, ++counter);
-        printf("%s = alloca %s\n", get_counter(value), type);
-        printf("store %s %%%d, %s* %s\n", type, ++temp_counter, type, get_counter(value));
+        printf("%%%d = alloca %s\n", counter, type);
+        printf("store %s %%%d, %s* %%%d\n", type, ++temp_counter, type, counter);
     }
 }
 
-char* convert_int_double(char *num){
+char* format_num(char *num){
     char *val = strdup(num);
 
     char *i = val, *j = val;
@@ -272,7 +280,7 @@ char* convert_int_double(char *num){
 void load_value(Node *node, char **op){
     if(!node) return;
     if(strcmp(node->type, "DecLit") == 0 || strcmp(node->type, "RealLit") == 0){
-        *op = convert_int_double(node->value);
+        *op = format_num(node->value);
         return;
     }
     if(strcmp(node->type, "BoolLit") == 0){
@@ -290,18 +298,16 @@ void load_value(Node *node, char **op){
 }
 
 void two_son_int_double(Node *node, char *op_int, char *op_double){
-    // Para fazer as conversões necessárias
-    int count;
-    Node *aux = node->son;
     char *op[2];
     load_value(node->son, &op[0]);
     load_value(node->son->bro, &op[1]);
 
     // Para descobrir se é uma adição do tipo: int + int / int + double / double + int / double + double
     Node *son = node->son;
+    char *node_true_type = convert_type(node->true_type);
     char *son_true_type = convert_type(son->true_type);
     char *other_son_true_type = convert_type(son->bro->true_type);
-    if(strcmp(node->true_type, "int") == 0)
+    if(strcmp(node_true_type, "i32") == 0)
         printf("%%%d = %s i32 %s, %s\n", ++counter, op_int, op[0], op[1]);
     else {
         if(strcmp(son_true_type, "i32") == 0){
@@ -320,9 +326,6 @@ void two_son_int_double(Node *node, char *op_int, char *op_double){
 }
 
 void two_son_boolean(Node *node, char *op_boolean){
-    // Para fazer as conversões necessárias
-    int count;
-    Node *aux = node->son;
     char *op[2];
     load_value(node->son, &op[0]);
     load_value(node->son->bro, &op[1]);
@@ -333,7 +336,6 @@ void two_son_boolean(Node *node, char *op_boolean){
 }
 
 void two_son_cmp(Node *node, char *op_ins, char *op_ins_f){
-    Node *aux = node->son;
     char *op[2];
     load_value(node->son, &op[0]);
     load_value(node->son->bro, &op[1]);
@@ -625,7 +627,7 @@ int gen_llvmir(Node *node){
         if(strcmp(convert_type(son->true_type), "i32") == 0)
             printf("%%%d = sub i32 0, %s\n", ++counter, op);
         else
-            printf("%%%d = fsub double 0.0, %s\n", ++counter, op);
+            printf("%%%d = fneg double %s\n", ++counter, op);
 
         free(op); 
         return 0;
@@ -751,13 +753,25 @@ int setup_llvmir(){
     printf("call i32 (i8*, ...) @printf(i8* %%3)\n");
     printf("ret void\n}\n");
 
-    gen_llvmir(root);
+    int main_exists = 0;
+    for(TableElement *aux = global_symtab->symbols; aux; aux = aux->next){
+        if(strcmp(aux->name, "main") == 0 && strcmp(aux->params->param_type, "String[]") == 0){
+            main_exists = 1;
+            break;
+        }
+    }
+
+    if(main_exists) gen_llvmir(root);
 
     
     printf("\ndefine i32 @main(i32 %%0, i8** %%1) {\n");
     printf("%%3 = sub i32 %%0, 1\n");
     printf("store i32 %%3, i32* @.argc\n");
-    printf("call void @main.StringArray(i8** %%1)\nret i32 0\n}\n");
+
+    
+    if(main_exists) printf("call void @main.StringArray(i8** %%1)\n");
+    
+    printf("ret i32 0\n}\n");
     //printf("\ndefine i32 @main() {\n");
     
     //print_boolean("%6");
