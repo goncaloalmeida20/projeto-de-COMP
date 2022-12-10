@@ -537,8 +537,8 @@ int gen_llvmir(Node *node){
         return 0;
     }
     if (strcmp(node->type, "And") == 0){
-        //two_son_boolean(node, "and");
-        Node *son = node->son;
+        two_son_boolean(node, "and");
+        /*Node *son = node->son;
         char *op1, *op2;
 
         int temp_label_counter = ++label_counter;
@@ -562,12 +562,12 @@ int gen_llvmir(Node *node){
         printf("%%%d = load i1, i1* %%and_res.%d\n\n", ++counter, temp_label_counter);
         
         free(op1);
-        free(op2);
+        free(op2);*/
         return 0;
     }
     if (strcmp(node->type, "Or") == 0){
-        //two_son_boolean(node, "or");
-        Node *son = node->son;
+        two_son_boolean(node, "or");
+        /*Node *son = node->son;
         char *op1, *op2;
 
         int temp_label_counter = ++label_counter;
@@ -591,7 +591,7 @@ int gen_llvmir(Node *node){
         printf("%%%d = load i1, i1* %%or_res.%d\n\n", ++counter, temp_label_counter);
 
         free(op1);
-        free(op2);
+        free(op2);*/
         return 0;
     }
     if (strcmp(node->type, "Not") == 0){
