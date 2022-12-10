@@ -15,11 +15,7 @@ char* conv_escape(char *s, int *new_len){
     int esc_counter = 0;
     char *aux, *new_aux;
     for(aux = s+1; *(aux+1); aux++, (*new_len)++){
-        if(*aux == '\\' && aux+1 && *(aux+1) == '\\'){
-            esc_counter++;
-            aux++;
-        }
-        else if(*aux == '\\'){
+        if(*aux == '\\'){
             esc_counter += 2;
             aux++;
         } 
@@ -50,16 +46,13 @@ char* conv_escape(char *s, int *new_len){
                     *new_aux++ = '9';
                     break;
                 case '\\':
-                    *new_aux++ = '\\';
+                    *new_aux++ = '5';
+                    *new_aux++ = 'C';
                     break;
                 case '\"':
                     *new_aux++ = '2';
                     *new_aux++ = '2';
                     break;
-                default:
-                    printf("ERROR CONV ESC SWITCH\n");
-                    free(new_s);
-                    return NULL;
             }
         }
         else *new_aux++ = *aux;
@@ -169,12 +162,12 @@ void print_boolean(char *s){
 }
 
 void print_int(char *i){
-    printf("call i32 (i8*, ...) @printf(i8* getelementptr ([3 x i8], [3 x i8]* @.int, i64 0, i64 0), i32 %s)\n", i);
+    printf("call i32 (i8*, ...) @printf(i8* getelementptr ([3 x i8], [3 x i8]* @.int, i32 0, i32 0), i32 %s)\n", i);
     counter++;
 }
 
 void print_double(char *d){
-    printf("call i32 (i8*, ...) @printf(i8* getelementptr ([6 x i8], [6 x i8]* @.double, i64 0, i64 0), double %s)\n", d);
+    printf("call i32 (i8*, ...) @printf(i8* getelementptr ([6 x i8], [6 x i8]* @.double, i32 0, i32 0), double %s)\n", d);
     counter++;
 }
 
@@ -193,7 +186,7 @@ void init_strings(){
 void print_string(char *s){ 
     Str *full_str = search_string(s);
     int s_len = full_str->len, s_id = full_str->string_id;
-    printf("tail call i32 (i8*, ...) @printf(i8* getelementptr ([%d x i8], [%d x i8]* @.str.%d, i64 0, i64 0))\n", s_len, s_len, s_id);
+    printf("call i32 (i8*, ...) @printf(i8* getelementptr ([%d x i8], [%d x i8]* @.str.%d, i32 0, i32 0))\n", s_len, s_len, s_id);
     counter++;
 }
 
@@ -751,7 +744,7 @@ int setup_llvmir(){
     init_global_vars();
     printf("\ndeclare i32 @printf(i8* nocapture readonly, ...) nounwind");
     printf("\ndeclare i32 @atoi(i8* nocapture readonly) nounwind\n");
-    printf("\ndefine void @.print_boolean(i1 %%.boolean) nounwind{\n");
+    printf("\ndefine void @.print_boolean(i1 %%.boolean) {\n");
     printf("%%1 = zext i1 %%.boolean to i32\n");
     printf("%%2 = getelementptr [2 x i8*], [2 x i8*]* @.booleans, i32 0, i32 %%1\n");
     printf("%%3 = load i8*, i8** %%2\n");
