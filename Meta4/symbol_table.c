@@ -27,7 +27,6 @@ int compare_params(Param *p1,Param *p2){
 		if(strcmp(aux1->param_type, aux2->param_type) == 0) continue;
 		mapped_p1_type = map_int_double(aux1->param_type);
 		mapped_p2_type = map_int_double(aux2->param_type);
-		//printf("aaaa %s %d %s %d\n", aux1->name, mapped_p1_type, aux2->name, mapped_p2_type);
 		if(mapped_p1_type >= 0 && mapped_p2_type >= 0 && mapped_p1_type >= mapped_p2_type){
 			return_promoted = 2;
 		}
@@ -45,11 +44,6 @@ SymTab* search_symtab(char *scope, Param *params){
 	}
 
 	for(SymTab *aux = symtab_list; aux != NULL; aux = aux->next){
-		/*printf("aaaa %s %s\n", scope, aux->scope);
-		print_params(params);
-		printf("\nzzzz\n");
-		print_params(aux->params);
-		printf("--------\n");*/
 		if(strcmp(scope, aux->scope) == 0 && compare_params(params, aux->params) == 1) return aux;
 	}
 		
@@ -247,10 +241,10 @@ int init_global_symtab(){
 		return 0;
 	}
 	global_symtab->scope = NULL;
+	global_symtab->type = NULL;
 	global_symtab->params = NULL;
 	global_symtab->symbols = NULL;
 	global_symtab->next = NULL;
-	global_symtab->type = NULL;
 	return 1;
 }
 

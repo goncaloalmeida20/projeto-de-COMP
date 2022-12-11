@@ -74,7 +74,6 @@ void print_tree(Node *n, int level){
         } 
         else printf("%s(%s)\n", n->type, n->value);
     }
-    //else printf("%s(%s) %d %d\n", n->type, n->value, n->line, n->col);
 
     print_tree(n->son, level+1);
     print_tree(n->bro, level);

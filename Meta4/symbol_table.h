@@ -39,6 +39,5 @@ void show_table();
 void free_params(Param *params);
 void free_table_element(TableElement *table_element);
 void free_sym_tab(SymTab *sym_tab);
-//char* convert_type(char *type);
 
 #endif

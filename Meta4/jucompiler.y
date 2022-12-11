@@ -49,7 +49,7 @@
 Program: CLASS ID LBRACE RBRACE                     {root = create_node("Program", NULL, 0, 0, NULL); add_son(root, create_node("Id",$2->value, $2->line, $2->col, NULL)); free_tk($1, $2, $3, $4, NULL, NULL);}                   
     | CLASS ID LBRACE MethodFieldDecl RBRACE        {root = create_node("Program", NULL, 0, 0, NULL); add_son(root, add_bro(create_node("Id",$2->value, $2->line, $2->col, NULL), $4)); free_tk($1, $2, $3, $5, NULL, NULL);}   
     | CLASS ID LBRACE RBRACE error                  {yacc_error = 1; free_tk($1, $2, $3, $4, NULL, NULL);}                   
-    | CLASS ID LBRACE MethodFieldDecl RBRACE error  {yacc_error = 1; free_tk($1, $2, $3, $5, NULL, NULL);}   
+    | CLASS ID LBRACE MethodFieldDecl RBRACE error  {yacc_error = 1; free_tk($1, $2, $3, NULL, $5, NULL);}   
     ;
 
 MethodFieldDecl: MethodDecl                         {$$=$1;}
@@ -64,7 +64,7 @@ MethodDecl: PUBLIC STATIC MethodHeader MethodBody   {$$=add_son(create_node("Met
 
 FieldDecl: PUBLIC STATIC Type ID SEMICOLON          {$$=add_son(create_node("FieldDecl",NULL, 0, 0, NULL), add_bro($3, create_node("Id", $4->value, $4->line, $4->col, NULL)));free_tk($1, $2, $4, $5, NULL, NULL);} 
     | PUBLIC STATIC Type ID FieldCommaId SEMICOLON  {$$=add_bro(add_son(create_node("FieldDecl",NULL, 0, 0, NULL), add_bro($3, create_node("Id", $4->value, $4->line, $4->col, NULL))), $5);free_tk($1, $2, NULL, $4, NULL, $6);}   
-    | error SEMICOLON                               {yacc_error = 1; $$=NULL;}
+    | error SEMICOLON                               {yacc_error = 1; $$=NULL; free_tk(NULL, $2, NULL, NULL, NULL, NULL);}
     ;
 
 FieldCommaId: COMMA ID                              {$$=add_son(create_node("FieldDecl",NULL, 0, 0, NULL), add_bro(create_node(current_type, NULL, $2->line, $2->col, current_true_type), create_node("Id", $2->value, $2->line, $2->col, NULL)));free_tk($1, $2, NULL, NULL, NULL, NULL);}   
@@ -124,7 +124,7 @@ Statement: LBRACE RBRACE                            {$$=NULL;free_tk($1, $2, NUL
     | ParseArgs SEMICOLON                           {$$=$1;free_tk(NULL, $2, NULL, NULL, NULL, NULL);}
     | PRINT LPAR STRLIT RPAR SEMICOLON              {$$=add_son(create_node("Print", NULL, $1->line, $1->col, "System.out.print"), create_node("StrLit", $3->value, $3->line, $3->col, "String"));free_tk($1, $2, $3, $4, $5, NULL);}
     | PRINT LPAR Expr RPAR SEMICOLON                {$$=add_son(create_node("Print",NULL, $1->line, $1->col, "System.out.print"), $3);free_tk($1, $2, NULL, $4, $5, NULL);}
-    | error SEMICOLON                               {yacc_error = 1; $$=NULL;}
+    | error SEMICOLON                               {yacc_error = 1; $$=NULL; free_tk(NULL, $2, NULL, NULL, NULL, NULL);}
     ;
 
 MultipleStatements: Statement MultipleStatements    {$$=add_bro($1,$2);}
@@ -134,7 +134,7 @@ MultipleStatements: Statement MultipleStatements    {$$=add_bro($1,$2);}
 MethodInvocation: ID LPAR RPAR                      {$$=create_node("Id", $1->value, $1->line, $1->col, NULL);free_tk($1, $2, $3, NULL, NULL, NULL);}
     | ID LPAR Expr RPAR                             {$$=add_bro(create_node("Id", $1->value, $1->line, $1->col, NULL), $3);free_tk($1, $2, $4, NULL, NULL, NULL);}
     | ID LPAR Expr CommaExpr RPAR                   {$$=add_bro(create_node("Id", $1->value, $1->line, $1->col, NULL), add_bro($3, $4));free_tk($1, $2, $5, NULL, NULL, NULL);}
-    | ID LPAR error RPAR                            {yacc_error = 1; $$=NULL;}
+    | ID LPAR error RPAR                            {yacc_error = 1; $$=NULL; free_tk($1, $2, NULL, $4, NULL, NULL);}
     ;
 
 CommaExpr: COMMA Expr                               {$$=$2;free_tk($1, NULL, NULL, NULL, NULL, NULL);}
