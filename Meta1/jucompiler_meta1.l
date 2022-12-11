@@ -9,13 +9,9 @@
     #include <stdlib.h>
     #include <string.h>
 
-    #define MAX_STRING_SIZE 32768
-
     int line = 1, line_temp = 1;
     int col = 1, col_temp = 1;
     int flag = 0; // 0: -e1 or no flag, 1: -l
-    int current_string_pos = 0, print_string = 1;
-    char string[MAX_STRING_SIZE];
 %}
 num [0-9]
 numnotzero [1-9]
@@ -42,7 +38,7 @@ ignore [ \t\r\f]
 "\""{valid_str}"\\" {col_temp = col; col_temp += yyleng; printf("Line %d, col %d: invalid escape sequence (%s)\n", line, col_temp - 1, &yytext[yyleng-1]); BEGIN (STRING_ERROR);}
 <STRING_ERROR>"\"" {col_temp += yyleng; col = col_temp; BEGIN (0);}
 <STRING_ERROR><<EOF>> {printf("Line %d, col %d: unterminated string literal\n", line, col); BEGIN (0);}
-<STRING_ERROR>{new_line} {printf("Line %d, col %d: unterminated string literal\n", line, col); string[0] = 0; line++; col = 1; BEGIN (0);}
+<STRING_ERROR>{new_line} {printf("Line %d, col %d: unterminated string literal\n", line, col); line++; col = 1; BEGIN (0);}
 <STRING_ERROR>("\\"{escape_chars})|[^\\] {col_temp += yyleng;}
 <STRING_ERROR>("\\"{invalid_escape}?) {printf("Line %d, col %d: invalid escape sequence (%s)\n", line, col_temp, yytext); col_temp += yyleng;}
 
