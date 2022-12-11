@@ -537,61 +537,58 @@ int gen_llvmir(Node *node){
         return 0;
     }
     if (strcmp(node->type, "And") == 0){
-        two_son_boolean(node, "and");
-        /*Node *son = node->son;
+        Node *son = node->son;
         char *op1, *op2;
 
         int temp_label_counter = ++label_counter;
         printf("br label %%and_entry.%d\n\n", temp_label_counter);
         
         printf("and_entry.%d:\n", temp_label_counter);
-        printf("%%and_res.%d = alloca i1\n", temp_label_counter);
         load_value(son, &op1);
         printf("br i1 %s, label %%and_normal.%d, label %%and_short_circuit.%d\n\n", op1, temp_label_counter, temp_label_counter);
         
-        printf("and_normal.%d:\n", temp_label_counter);
+        printf("and_normal.%d:\t\t;preds = %%and_entry.%d\n", temp_label_counter, temp_label_counter);
         load_value(son->bro, &op2);
-        printf("store i1 %s, i1* %%and_res.%d\n", op2, temp_label_counter);
+        printf("br label %%and_no_short_circuit.%d\n\n", temp_label_counter);
+
+        printf("and_no_short_circuit.%d:\t\t;preds = %%and_normal.%d\n", temp_label_counter, temp_label_counter);
         printf("br label %%and_cont.%d\n\n", temp_label_counter);
         
-        printf("and_short_circuit.%d:\n", temp_label_counter);
-        printf("store i1 0, i1* %%and_res.%d\n", temp_label_counter);
+        printf("and_short_circuit.%d:\t\t;preds = %%and_entry.%d\n", temp_label_counter, temp_label_counter);
         printf("br label %%and_cont.%d\n\n", temp_label_counter);
         
-        printf("and_cont.%d:\n", temp_label_counter);
-        printf("%%%d = load i1, i1* %%and_res.%d\n\n", ++counter, temp_label_counter);
-        
+        printf("and_cont.%d:\t\t;preds = %%and_no_short_circuit.%d, %%and_short_circuit.%d\n", temp_label_counter, temp_label_counter, temp_label_counter);
+        printf("%%%d = phi i1 [%s, %%and_no_short_circuit.%d], [false, %%and_short_circuit.%d]\n\n", ++counter, op2, temp_label_counter, temp_label_counter);
+
         free(op1);
-        free(op2);*/
+        free(op2);
         return 0;
     }
     if (strcmp(node->type, "Or") == 0){
-        two_son_boolean(node, "or");
-        /*Node *son = node->son;
+        Node *son = node->son;
         char *op1, *op2;
 
         int temp_label_counter = ++label_counter;
         printf("br label %%or_entry.%d\n\n", temp_label_counter);
 
         printf("or_entry.%d:\n", temp_label_counter);
-        printf("%%or_res.%d = alloca i1\n", temp_label_counter);
         load_value(son, &op1);
         printf("br i1 %s, label %%or_short_circuit.%d, label %%or_normal.%d\n\n", op1, temp_label_counter, temp_label_counter);
         
-        printf("or_short_circuit.%d:\n", temp_label_counter);
-        printf("store i1 1, i1* %%or_res.%d\n", temp_label_counter);
+        printf("or_short_circuit.%d:\t\t;preds = %%or_entry.%d\n", temp_label_counter, temp_label_counter);
         printf("br label %%or_cont.%d\n\n", temp_label_counter);
         
-        printf("or_normal.%d:\n", temp_label_counter);
+        printf("or_normal.%d:\t\t;preds = %%or_entry.%d\n", temp_label_counter, temp_label_counter);
         load_value(son->bro, &op2);
-        printf("store i1 %s, i1* %%or_res.%d\n", op2, temp_label_counter);
+        printf("br label %%or_no_short_circuit.%d\n\n", temp_label_counter);
+
+        printf("or_no_short_circuit.%d:\t\t;preds = %%or_normal.%d\n", temp_label_counter, temp_label_counter);
         printf("br label %%or_cont.%d\n\n", temp_label_counter);
         
-        printf("or_cont.%d:\n", temp_label_counter);
-        printf("%%%d = load i1, i1* %%or_res.%d\n\n", ++counter, temp_label_counter);
-
+        printf("or_cont.%d:\t\t;preds = %%or_no_short_circuit.%d, %%or_short_circuit.%d\n", temp_label_counter, temp_label_counter, temp_label_counter);
+        printf("%%%d = phi i1 [true, %%or_short_circuit.%d], [%s, %%or_no_short_circuit.%d]\n\n", ++counter, temp_label_counter, op2, temp_label_counter);
         free(op1);
-        free(op2);*/
+        free(op2);
         return 0;
     }
     if (strcmp(node->type, "Not") == 0){
@@ -741,8 +738,8 @@ int setup_llvmir(){
     printf("@.int = private unnamed_addr constant [3 x i8] c\"%%d\\00\"\n");
     printf("@.double = private unnamed_addr constant [6 x i8] c\"%%.16e\\00\"\n");
     printf("@.string = private constant [3 x i8] c\"%%s\\00\"\n");
-    printf("@.argc = global i32 0\n\n");
     init_strings();
+    printf("@.argc = global i32 0\n\n");
     init_global_vars();
     printf("\ndeclare i32 @printf(i8* nocapture readonly, ...) nounwind");
     printf("\ndeclare i32 @atoi(i8* nocapture readonly) nounwind\n");
