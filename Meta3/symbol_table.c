@@ -27,7 +27,6 @@ int compare_params(Param *p1,Param *p2){
 		if(strcmp(aux1->param_type, aux2->param_type) == 0) continue;
 		mapped_p1_type = map_int_double(aux1->param_type);
 		mapped_p2_type = map_int_double(aux2->param_type);
-		//printf("aaaa %s %d %s %d\n", aux1->name, mapped_p1_type, aux2->name, mapped_p2_type);
 		if(mapped_p1_type >= 0 && mapped_p2_type >= 0 && mapped_p1_type >= mapped_p2_type){
 			return_promoted = 2;
 		}
@@ -45,11 +44,6 @@ SymTab* search_symtab(char *scope, Param *params){
 	}
 
 	for(SymTab *aux = symtab_list; aux != NULL; aux = aux->next){
-		/*printf("aaaa %s %s\n", scope, aux->scope);
-		print_params(params);
-		printf("\nzzzz\n");
-		print_params(aux->params);
-		printf("--------\n");*/
 		if(strcmp(scope, aux->scope) == 0 && compare_params(params, aux->params) == 1) return aux;
 	}
 		
@@ -137,13 +131,19 @@ Param* add_param(Param *params, char *name, char *type, int *error){
 
 TableElement *search_el_func(char *name, Param *params, int *ambiguous){
 	if(ambiguous) *ambiguous = 0;
-	int ambiguous_count = 0;
+	int ambiguous_count = 0, free_temp_params = 0;
 	TableElement *promoted_int_func = NULL;
 	for(TableElement *aux=global_symtab->symbols; aux; aux=aux->next){
 		if(aux->params && strcmp(aux->name, name)==0){
-			if(!params)
+			if(!params){
+				free_temp_params = 1;
 				params = add_param(NULL, NULL, "", NULL);
+			}
 			int comparison = compare_params(aux->params, params);
+			if(free_temp_params){
+				free_params(params);
+				params = NULL;
+			}
 			if(comparison == 1) return aux;
 			if(ambiguous && comparison == 2){
 				if(ambiguous_count == 0){
@@ -241,21 +241,12 @@ int init_global_symtab(){
 		return 0;
 	}
 	global_symtab->scope = NULL;
+	global_symtab->type = NULL;
 	global_symtab->params = NULL;
 	global_symtab->symbols = NULL;
 	global_symtab->next = NULL;
 	return 1;
 }
-
-/*
-char* convert_type(char *type){
-    if(strcmp(type, "Int") == 0) return "int";
-    else if(strcmp(type, "Bool") == 0) return "boolean";
-    else if(strcmp(type, "Double") == 0) return "double";
-    else if(strcmp(type, "StringArray") == 0) return "String[]";
-    else if(strcmp(type, "Void") == 0) return "void";
-    else return type;
-}*/
 
 void print_params(Param *params){
     Param *aux;

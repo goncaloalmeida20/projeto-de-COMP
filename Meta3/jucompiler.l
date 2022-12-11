@@ -156,6 +156,7 @@ int main(int argc, char *argv[]){
     }
     free_tables();
     free_tree(root);
+	yylex_destroy();
     return 0;
 }
 
@@ -164,7 +165,6 @@ void update_vars(char *value){
 	line_yacc = line; 
 	col += yyleng;
     if(flag_yacc >= 0) {
-        //printf("adasdsada %s %d %d\n", yytext, line_yacc, col_yacc);
         yylval.tk = (Tk *) malloc(sizeof(Tk));
         yylval.tk->value = NULL;
         if (value)
