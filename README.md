@@ -1,4 +1,4 @@
-# Projeto-de-Compiladores-2022/23
+# Projeto de Compiladores
 
 Este projeto consiste no desenvolvimento de um compilador para a linguagem Juc, que é um subconjunto da linguagem Java de acordo com a especificação Java SE 9 (disponível na página https://docs.oracle.com/javase/specs/jls/se9/html/index.html).
 Na linguagem Juc é possível usar variáveis e literais dos tipos boolean, int e double (estes dois últimos com sinal). É também possível usar literais do tipo String, apenas para efeito de escrita no stdout. A linguagem Juc inclui expressões aritméticas e lógicas, instruções de atribuição, operadores relacionais e instruções de controlo (while e if-else). Inclui também métodos estáticos com os tipos de dados já referidos e ainda o tipo especial String[], sendo a passagem de parâmetros sempre feita por valor e podendo ou não ter valor de retorno. A ausência de valor de retorno é identificada pela palavra-chave void.
